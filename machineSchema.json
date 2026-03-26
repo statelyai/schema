@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "The state node ID",
+      "type": "string"
+    },
+    "description": {
+      "description": "The text description of this state node",
+      "type": "string"
+    },
+    "type": {
+      "description": "The state type, if not a normal (atomic or compound) state node",
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "parallel"
+        },
+        {
+          "type": "string",
+          "const": "history"
+        },
+        {
+          "type": "string",
+          "const": "final"
+        }
+      ]
+    },
+    "target": {
+      "description": "The target state for history states",
+      "type": "string"
+    },
+    "history": {
+      "description": "The history type for history states",
+      "type": "string",
+      "enum": [
+        "shallow",
+        "deep"
+      ]
+    },
+    "entry": {
+      "description": "The entry actions",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action"
+      }
+    },
+    "exit": {
+      "description": "The exit actions",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action"
+      }
+    },
+    "initial": {
+      "description": "The initial child state",
+      "type": "string"
+    },
+    "on": {
+      "description": "The transitions",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Transition"
+            }
+          },
+          {
+            "$ref": "#/$defs/Transition"
+          }
+        ]
+      }
+    },
+    "after": {
+      "description": "The delayed transitions that will trigger after the specified delay",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Transition"
+            }
+          },
+          {
+            "$ref": "#/$defs/Transition"
+          }
+        ]
+      }
+    },
+    "always": {
+      "description": "The transitions that will immediately trigger if they are enabled; i.e. their guard evaluates to true",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Transition"
+          }
+        },
+        {
+          "$ref": "#/$defs/Transition"
+        }
+      ]
+    },
+    "invoke": {
+      "description": "The invoked actors that will be spawned when the state is entered",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Invoke"
+      }
+    },
+    "meta": {
+      "description": "The metadata for this state node",
+      "$ref": "#/$defs/Meta"
+    },
+    "states": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Action": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "id": "Action"
+    },
+    "Transition": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Action"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "guard": {
+          "$ref": "#/$defs/Guard"
+        },
+        "meta": {
+          "$ref": "#/$defs/Meta"
+        }
+      },
+      "additionalProperties": false,
+      "id": "Transition"
+    },
+    "Guard": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "id": "Guard"
+    },
+    "Meta": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {},
+      "id": "Meta"
+    },
+    "Invoke": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "onDone": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Transition"
+              }
+            },
+            {
+              "$ref": "#/$defs/Transition"
+            }
+          ]
+        },
+        "onError": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Transition"
+              }
+            },
+            {
+              "$ref": "#/$defs/Transition"
+            }
+          ]
+        }
+      },
+      "required": [
+        "src"
+      ],
+      "additionalProperties": false,
+      "id": "Invoke"
+    },
+    "__schema0": {
+      "description": "The child states",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/State"
+      }
+    },
+    "State": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The state node ID",
+          "type": "string"
+        },
+        "description": {
+          "description": "The text description of this state node",
+          "type": "string"
+        },
+        "type": {
+          "description": "The state type, if not a normal (atomic or compound) state node",
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "parallel"
+            },
+            {
+              "type": "string",
+              "const": "history"
+            },
+            {
+              "type": "string",
+              "const": "final"
+            }
+          ]
+        },
+        "target": {
+          "description": "The target state for history states",
+          "type": "string"
+        },
+        "history": {
+          "description": "The history type for history states",
+          "type": "string",
+          "enum": [
+            "shallow",
+            "deep"
+          ]
+        },
+        "entry": {
+          "description": "The entry actions",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Action"
+          }
+        },
+        "exit": {
+          "description": "The exit actions",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Action"
+          }
+        },
+        "initial": {
+          "description": "The initial child state",
+          "type": "string"
+        },
+        "on": {
+          "description": "The transitions",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Transition"
+                }
+              },
+              {
+                "$ref": "#/$defs/Transition"
+              }
+            ]
+          }
+        },
+        "after": {
+          "description": "The delayed transitions that will trigger after the specified delay",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Transition"
+                }
+              },
+              {
+                "$ref": "#/$defs/Transition"
+              }
+            ]
+          }
+        },
+        "always": {
+          "description": "The transitions that will immediately trigger if they are enabled; i.e. their guard evaluates to true",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Transition"
+              }
+            },
+            {
+              "$ref": "#/$defs/Transition"
+            }
+          ]
+        },
+        "invoke": {
+          "description": "The invoked actors that will be spawned when the state is entered",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Invoke"
+          }
+        },
+        "meta": {
+          "description": "The metadata for this state node",
+          "$ref": "#/$defs/Meta"
+        },
+        "states": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "additionalProperties": false,
+      "id": "State"
+    }
+  }
+}
