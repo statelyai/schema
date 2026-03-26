@@ -1,5 +1,5 @@
 {
-  "name": "@statelyai/spec",
+  "name": "@statelyai/schema",
   "version": "0.1.0",
   "description": "The Stately JSON specification for statecharts and workflows",
   "main": "./dist/index.cjs",
@@ -35,8 +35,8 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "jsonata": ">=2.0.0",
     "jmespath": ">=0.16.0",
+    "jsonata": ">=2.0.0",
     "jsonpath-plus": ">=7.0.0",
     "zod": ">=4.0.0"
   },
@@ -76,10 +76,10 @@
       "import": "./dist/jsonpath.mjs",
       "require": "./dist/jsonpath.cjs"
     },
-    "./machine.json": "./schemas/machine.json",
-    "./graph.json": "./schemas/graph.json"
+    "./machine.json": "./schemas/machine.json"
   },
   "dependencies": {
+    "@statelyai/graph": "^0.8.0",
     "xstate": "^5.28.0"
   }
 }

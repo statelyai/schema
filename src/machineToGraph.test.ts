@@ -1,270 +1,173 @@
-import { test, describe } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import { machineToGraph } from './machineToGraph';
-import { StateMachine } from './machineSchema';
+import type { StateMachine } from './machineSchema';
+import { getNode, getEdgesOf, getChildren } from '@statelyai/graph';
 
 describe('machineToGraph', () => {
   test('empty machine', () => {
-    const machine: StateMachine = {};
-    const graph = machineToGraph(machine);
-
-    assert.deepStrictEqual(graph.nodes, []);
-    assert.deepStrictEqual(graph.edges, []);
+    const graph = machineToGraph({});
+    assert.strictEqual(graph.nodes.length, 0);
+    assert.strictEqual(graph.edges.length, 0);
   });
 
-  test('machine with single state', () => {
-    const machine: StateMachine = {
-      id: 'test',
-      states: {
-        idle: {},
-      },
-    };
-    const graph = machineToGraph(machine);
-
-    assert.strictEqual(graph.nodes.length, 2); // root + idle
-    assert.ok(graph.nodes.find((n) => n.id === 'test'));
-    assert.ok(
-      graph.nodes.find((n) => n.id === 'test.idle' && n.parentId === 'test')
-    );
-  });
-
-  test('machine with initial state', () => {
-    const machine: StateMachine = {
-      id: 'test',
+  test('single state', () => {
+    const graph = machineToGraph({
       initial: 'idle',
-      states: {
-        idle: {},
-        active: {},
-      },
-    };
-    const graph = machineToGraph(machine);
-
-    const initialEdge = graph.edges.find(
-      (e) => e.sourceId === 'test' && e.targetId === 'test.idle'
-    );
-    assert.ok(initialEdge);
-    assert.strictEqual(initialEdge.description, 'Initial transition');
+      states: { idle: {} },
+    });
+    assert.strictEqual(graph.nodes.length, 1);
+    assert.ok(getNode(graph, 'idle'));
   });
 
-  test('machine with event transitions', () => {
-    const machine: StateMachine = {
+  test('event transitions become edges', () => {
+    const spec: StateMachine = {
+      initial: 'a',
       states: {
-        idle: {
+        a: { on: { GO: { target: 'b' } } },
+        b: {},
+      },
+    };
+    const graph = machineToGraph(spec);
+    assert.strictEqual(graph.nodes.length, 2);
+    assert.strictEqual(graph.edges.length, 1);
+    assert.strictEqual(graph.edges[0].sourceId, 'a');
+    assert.strictEqual(graph.edges[0].targetId, 'b');
+    assert.strictEqual(graph.edges[0].label, 'GO');
+  });
+
+  test('branching transitions create multiple edges', () => {
+    const spec: StateMachine = {
+      initial: 'a',
+      states: {
+        a: {
           on: {
-            START: {
-              target: 'active',
-            },
+            CHECK: [
+              { target: 'b', guard: '{{ context.ready }}' },
+              { target: 'c' },
+            ],
           },
         },
-        active: {},
+        b: {},
+        c: {},
       },
     };
-    const graph = machineToGraph(machine);
-
-    const edge = graph.edges.find(
-      (e) => e.sourceId === 'idle' && e.targetId === 'active'
-    );
-    assert.ok(edge);
-    assert.strictEqual(edge.description, 'On START');
+    const graph = machineToGraph(spec);
+    const edgesFromA = getEdgesOf(graph, 'a');
+    assert.strictEqual(edgesFromA.length, 2);
   });
 
-  test('machine with multiple transitions on same event', () => {
-    const machine: StateMachine = {
-      states: {
-        idle: {
-          on: {
-            CLICK: [{ target: 'loading' }, { target: 'error' }],
-          },
-        },
-        loading: {},
-        error: {},
-      },
-    };
-    const graph = machineToGraph(machine);
-
-    const edges = graph.edges.filter(
-      (e) => e.sourceId === 'idle' && e.description === 'On CLICK'
-    );
-    assert.strictEqual(edges?.length, 2);
-  });
-
-  test('machine with delayed transitions', () => {
-    const machine: StateMachine = {
+  test('delayed transitions', () => {
+    const spec: StateMachine = {
+      initial: 'waiting',
       states: {
         waiting: {
-          after: {
-            '1000': {
-              target: 'done',
-            },
-          },
+          after: { PT30S: { target: 'timeout' } },
         },
-        done: {},
+        timeout: {},
       },
     };
-    const graph = machineToGraph(machine);
-
-    const edge = graph.edges.find(
-      (e) => e.sourceId === 'waiting' && e.targetId === 'done'
-    );
-    assert.ok(edge);
-    assert.strictEqual(edge.description, 'After 1000');
+    const graph = machineToGraph(spec);
+    assert.strictEqual(graph.edges.length, 1);
+    assert.strictEqual(graph.edges[0].label, 'after PT30S');
   });
 
-  test('machine with always transitions', () => {
-    const machine: StateMachine = {
+  test('always transitions', () => {
+    const spec: StateMachine = {
+      initial: 'check',
       states: {
-        checking: {
-          always: {
-            target: 'done',
-          },
+        check: {
+          always: { target: 'done', guard: '{{ context.ready }}' },
         },
         done: {},
       },
     };
-    const graph = machineToGraph(machine);
-
-    const edge = graph.edges.find(
-      (e) => e.sourceId === 'checking' && e.targetId === 'done'
-    );
-    assert.ok(edge);
-    assert.strictEqual(edge.description, 'Always');
+    const graph = machineToGraph(spec);
+    assert.strictEqual(graph.edges.length, 1);
+    assert.strictEqual(graph.edges[0].label, 'always');
   });
 
-  test('machine with invoke transitions', () => {
-    const machine: StateMachine = {
+  test('invoke onDone/onError transitions', () => {
+    const spec: StateMachine = {
+      initial: 'loading',
       states: {
         loading: {
           invoke: [
             {
               src: 'fetchData',
-              onDone: {
-                target: 'success',
-              },
-              onError: {
-                target: 'error',
-              },
+              onDone: { target: 'success' },
+              onError: { target: 'failure' },
             },
           ],
         },
         success: {},
-        error: {},
+        failure: {},
       },
     };
-    const graph = machineToGraph(machine);
-
-    const doneEdge = graph.edges.find(
-      (e) => e.sourceId === 'loading' && e.targetId === 'success'
-    );
-    assert.ok(doneEdge);
-    assert.strictEqual(doneEdge.description, 'onDone: fetchData');
-
-    const errorEdge = graph.edges.find(
-      (e) => e.sourceId === 'loading' && e.targetId === 'error'
-    );
-    assert.ok(errorEdge);
-    assert.strictEqual(errorEdge.description, 'onError: fetchData');
+    const graph = machineToGraph(spec);
+    assert.strictEqual(graph.edges.length, 2);
+    const labels = graph.edges.map((e) => e.label).sort();
+    assert.deepStrictEqual(labels, ['fetchData.onDone', 'fetchData.onError']);
   });
 
-  test('nested states', () => {
-    const machine: StateMachine = {
-      id: 'parent',
+  test('nested states use dot-separated IDs with parentId', () => {
+    const spec: StateMachine = {
+      initial: 'parent',
       states: {
-        outer: {
-          initial: 'inner1',
+        parent: {
+          initial: 'child1',
           states: {
-            inner1: {},
-            inner2: {},
+            child1: { on: { NEXT: { target: 'child2' } } },
+            child2: {},
           },
         },
       },
     };
-    const graph = machineToGraph(machine);
+    const graph = machineToGraph(spec);
+    assert.strictEqual(graph.nodes.length, 3); // parent, child1, child2
 
-    const outerNode = graph.nodes.find((n) => n.id === 'parent.outer');
-    assert.ok(outerNode);
-    assert.strictEqual(outerNode.parentId, 'parent');
+    const child1 = getNode(graph, 'parent.child1');
+    assert.ok(child1);
+    assert.strictEqual(child1.parentId, 'parent');
 
-    const inner1Node = graph.nodes.find((n) => n.id === 'parent.outer.inner1');
-    assert.ok(inner1Node);
-    assert.strictEqual(inner1Node.parentId, 'parent.outer');
+    const children = getChildren(graph, 'parent');
+    assert.strictEqual(children.length, 2);
 
-    const initialEdge = graph.edges.find(
-      (e) =>
-        e.sourceId === 'parent.outer' && e.targetId === 'parent.outer.inner1'
-    );
-    assert.ok(initialEdge);
+    // Edge within parent resolves relative target
+    assert.strictEqual(graph.edges[0].sourceId, 'parent.child1');
+    assert.strictEqual(graph.edges[0].targetId, 'parent.child2');
   });
 
-  test('preserves metadata', () => {
-    const machine: StateMachine = {
-      description: 'Test machine',
+  test('preserves state metadata in node data', () => {
+    const spec: StateMachine = {
+      initial: 'idle',
       states: {
         idle: {
-          description: 'Idle state',
-          meta: { color: 'blue' },
-          on: {
-            START: {
-              target: 'active',
-              meta: { priority: 'high' },
-            },
-          },
+          description: 'Waiting',
+          tags: ['ready'],
+          meta: { color: 'green' },
         },
-        active: {},
       },
     };
-    const graph = machineToGraph(machine);
-
-    assert.strictEqual(graph.description, 'Test machine');
-
-    const idleNode = graph.nodes.find((n) => n.id === 'idle');
-    assert.strictEqual(idleNode?.description, 'Idle state');
-    assert.deepStrictEqual(idleNode?.meta, { color: 'blue' });
-
-    const edge = graph.edges.find((e) => e.sourceId === 'idle');
-    assert.deepStrictEqual(edge?.meta, { priority: 'high' });
+    const graph = machineToGraph(spec);
+    const node = getNode(graph, 'idle');
+    assert.ok(node);
+    assert.strictEqual(node.label, 'Waiting');
+    assert.deepStrictEqual(node.data.tags, ['ready']);
+    assert.deepStrictEqual(node.data.meta, { color: 'green' });
   });
 
-  test('complex machine', () => {
-    const machine: StateMachine = {
-      id: 'traffic',
-      description: 'Traffic light controller',
-      initial: 'red',
+  test('state type preserved in node data', () => {
+    const spec: StateMachine = {
+      initial: 'a',
       states: {
-        red: {
-          description: 'Stop',
-          after: {
-            '30000': {
-              target: 'green',
-            },
-          },
-        },
-        yellow: {
-          description: 'Caution',
-          after: {
-            '3000': {
-              target: 'red',
-            },
-          },
-        },
-        green: {
-          description: 'Go',
-          after: {
-            '25000': {
-              target: 'yellow',
-            },
-          },
-          on: {
-            EMERGENCY: {
-              target: 'red',
-            },
-          },
-        },
+        a: { on: { GO: { target: 'done' } } },
+        done: { type: 'final' },
       },
     };
-    const graph = machineToGraph(machine);
-
-    assert.strictEqual(graph.nodes?.length, 4); // root + 3 states
-    assert.strictEqual(graph.edges?.length, 5); // 1 initial + 4 transitions (3 after + 1 on)
-    assert.strictEqual(graph.description, 'Traffic light controller');
+    const graph = machineToGraph(spec);
+    const done = getNode(graph, 'done');
+    assert.ok(done);
+    assert.strictEqual(done.data.type, 'final');
   });
 });

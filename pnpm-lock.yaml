@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@statelyai/graph':
+        specifier: ^0.8.0
+        version: 0.8.0(zod@4.1.12)
       xstate:
         specifier: ^5.28.0
         version: 5.28.0
@@ -359,6 +362,29 @@ packages:
 
   '@rolldown/pluginutils@1.0.0-rc.9':
     resolution: {integrity: sha512-w6oiRWgEBl04QkFZgmW+jnU1EC9b57Oihi2ot3HNWIQRqgHp5PnYDia5iZ5FF7rpa4EQdiqMDXjlqKGXBhsoXw==, tarball: https://registry.npmjs.org/@rolldown/pluginutils/-/pluginutils-1.0.0-rc.9.tgz}
+
+  '@statelyai/graph@0.8.0':
+    resolution: {integrity: sha512-UqYGPNLnyQQgsdniHVctNVs4rMHqRVBvR6WRtwcSk8ReI0ZroCk8OQVM5jXEZGhIX2bzgfIW56aBjWNl5aFqVQ==, tarball: https://registry.npmjs.org/@statelyai/graph/-/graph-0.8.0.tgz}
+    peerDependencies:
+      cytoscape: ^3.0.0
+      d3-force: ^3.0.0
+      dotparser: ^1.0.0
+      elkjs: ^0.9.0 || ^0.10.0 || ^0.11.0
+      fast-xml-parser: ^5.0.0
+      zod: ^4.0.0
+    peerDependenciesMeta:
+      cytoscape:
+        optional: true
+      d3-force:
+        optional: true
+      dotparser:
+        optional: true
+      elkjs:
+        optional: true
+      fast-xml-parser:
+        optional: true
+      zod:
+        optional: true
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==, tarball: https://registry.npmjs.org/@tybys/wasm-util/-/wasm-util-0.10.1.tgz}
@@ -784,6 +810,10 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.0.0-rc.9': {}
+
+  '@statelyai/graph@0.8.0(zod@4.1.12)':
+    optionalDependencies:
+      zod: 4.1.12
 
   '@tybys/wasm-util@0.10.1':
     dependencies:

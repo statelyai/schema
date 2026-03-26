@@ -25,7 +25,6 @@ export {
   machineSchema,
 } from './machineSchema';
 export type { StateMachine } from './machineSchema';
-export { graphSchema, nodeSchema, edgeSchema } from './graphSchema';
 export {
   toXStateConfig,
   toXStateMachine,
@@ -34,3 +33,4 @@ export {
   parseISO8601Duration,
 } from './toXState';
 export type { ExpressionEvaluator } from './toXState';
+export { machineToGraph } from './machineToGraph';
