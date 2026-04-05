@@ -26,11 +26,60 @@ export {
 } from './machineSchema';
 export type { StateMachine } from './machineSchema';
 export {
-  toXStateConfig,
-  toXStateMachine,
   isExpression,
   stripDelimiters,
   parseISO8601Duration,
 } from './toXState';
 export type { ExpressionEvaluator } from './toXState';
 export { machineToGraph } from './machineToGraph';
+
+import type { StateMachine } from './machineSchema';
+import {
+  toXStateConfig,
+  toXStateMachine,
+  type ExpressionEvaluator,
+} from './toXState';
+import { createJmespathEvaluator } from './jmespath';
+import { createJsonpathEvaluator } from './jsonpath';
+import { createJsonataEvaluator } from './jsonata';
+
+export type QueryLanguage = 'jmespath' | 'jsonpath' | 'jsonata';
+
+export interface ConvertOptions {
+  queryLanguage?: QueryLanguage;
+  evaluate?: ExpressionEvaluator;
+}
+
+function resolveEvaluator(
+  spec: StateMachine,
+  options?: ConvertOptions
+): ExpressionEvaluator {
+  if (options?.evaluate) return options.evaluate;
+  const lang = options?.queryLanguage ?? spec.queryLanguage;
+  switch (lang) {
+    case 'jmespath':
+      return createJmespathEvaluator();
+    case 'jsonpath':
+      return createJsonpathEvaluator();
+    case 'jsonata':
+      return createJsonataEvaluator();
+    default:
+      throw new Error(
+        `Unknown query language "${lang}". Specify queryLanguage in the spec or options.`
+      );
+  }
+}
+
+export function convertSpecToMachine(
+  spec: StateMachine,
+  options?: ConvertOptions
+) {
+  return toXStateMachine(spec, resolveEvaluator(spec, options));
+}
+
+export function convertSpecToConfig(
+  spec: StateMachine,
+  options?: ConvertOptions
+) {
+  return toXStateConfig(spec, resolveEvaluator(spec, options));
+}

@@ -61,22 +61,7 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
-    "./jsonata": {
-      "types": "./dist/jsonata.d.mts",
-      "import": "./dist/jsonata.mjs",
-      "require": "./dist/jsonata.cjs"
-    },
-    "./jmespath": {
-      "types": "./dist/jmespath.d.mts",
-      "import": "./dist/jmespath.mjs",
-      "require": "./dist/jmespath.cjs"
-    },
-    "./jsonpath": {
-      "types": "./dist/jsonpath.d.mts",
-      "import": "./dist/jsonpath.mjs",
-      "require": "./dist/jsonpath.cjs"
-    },
-    "./machine.json": "./schemas/machine.json"
+"./machine.json": "./schemas/machine.json"
   },
   "dependencies": {
     "@statelyai/graph": "^0.8.0",

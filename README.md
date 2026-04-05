@@ -57,31 +57,29 @@ Expressions receive `{ context, event }` as their data root.
 
 ## Converting to XState
 
-Each query language has its own entry point with a converter:
+The `queryLanguage` in the spec is used to automatically resolve the expression evaluator:
 
 ```ts
-import { jmespathToXStateMachine } from '@statelyai/schema/jmespath';
+import { convertSpecToMachine } from '@statelyai/schema';
 import { transition, initialTransition } from 'xstate';
 
-const machine = jmespathToXStateMachine(spec);
+const machine = convertSpecToMachine(spec);
 const [state] = initialTransition(machine);
 const [next] = transition(machine, state, { type: 'SUBMIT' });
 ```
 
-Available converters:
+You can override the query language or provide a custom evaluator:
 
 ```ts
-// Pick one:
-import { jmespathToXStateMachine, jmespathToXStateConfig } from '@statelyai/schema/jmespath';
-import { jsonpathToXStateMachine, jsonpathToXStateConfig } from '@statelyai/schema/jsonpath';
-import { jsonataToXStateMachine, jsonataToXStateConfig } from '@statelyai/schema/jsonata';
-
-// Or bring your own evaluator:
-import { toXStateMachine, toXStateConfig } from '@statelyai/schema';
+import { convertSpecToMachine, convertSpecToConfig } from '@statelyai/schema';
 import type { ExpressionEvaluator } from '@statelyai/schema';
 
+// Override query language:
+const machine = convertSpecToMachine(spec, { queryLanguage: 'jsonata' });
+
+// Bring your own evaluator:
 const evaluate: ExpressionEvaluator = (expression, data) => { /* ... */ };
-const machine = toXStateMachine(spec, evaluate);
+const machine = convertSpecToMachine(spec, { evaluate });
 ```
 
 ## Schema validation

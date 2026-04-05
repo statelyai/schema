@@ -10,19 +10,10 @@ import {
 } from './toXState';
 import type { ExpressionEvaluator } from './toXState';
 import type { StateMachine } from './machineSchema';
-import {
-  createJsonataEvaluator,
-  jsonataToXStateConfig,
-  jsonataToXStateMachine,
-} from './jsonata';
-import {
-  createJmespathEvaluator,
-  jmespathToXStateMachine,
-} from './jmespath';
-import {
-  createJsonpathEvaluator,
-  jsonpathToXStateMachine,
-} from './jsonpath';
+import { convertSpecToMachine, convertSpecToConfig } from './index';
+import { createJsonataEvaluator } from './jsonata';
+import { createJmespathEvaluator } from './jmespath';
+import { createJsonpathEvaluator } from './jsonpath';
 
 // --- Helpers ---
 
@@ -556,7 +547,7 @@ describe('jsonata converter', () => {
     assert.strictEqual(result, 'a');
   });
 
-  test('jsonataToXStateConfig produces config with expression wrappers', () => {
+  test('convertSpecToConfig produces config with expression wrappers', () => {
     const spec: StateMachine = {
       queryLanguage: 'jsonata',
       initial: 'idle',
@@ -577,14 +568,14 @@ describe('jsonata converter', () => {
         },
       },
     };
-    const config = jsonataToXStateConfig(spec);
+    const config = convertSpecToConfig(spec);
     assert.strictEqual(config.initial, 'idle');
     assert.deepStrictEqual(config.context, { count: 0 });
     const actions = config.states.idle.on.INC.actions;
     assert.ok(actions.length === 1);
   });
 
-  test('jsonataToXStateMachine transitions work', () => {
+  test('convertSpecToMachine transitions work', () => {
     const spec: StateMachine = {
       queryLanguage: 'jsonata',
       initial: 'idle',
@@ -593,7 +584,7 @@ describe('jsonata converter', () => {
         active: { on: { STOP: { target: 'idle' } } },
       },
     };
-    const machine = jsonataToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     assert.strictEqual(s0.value, 'idle');
     const [s1] = transition(machine, s0, { type: 'GO' });
@@ -633,7 +624,7 @@ describe('jmespath converter', () => {
         },
       },
     };
-    const machine = jmespathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     assert.strictEqual(s0.context.greeting, '');
 
@@ -661,7 +652,7 @@ describe('jmespath converter', () => {
         active: {},
       },
     };
-    const machine = jmespathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
 
     // Guard blocks: ready is false
@@ -693,7 +684,7 @@ describe('jmespath converter', () => {
         },
       },
     };
-    const machine = jmespathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     assert.strictEqual(s0.context.greeting, '');
 
@@ -718,7 +709,7 @@ describe('jmespath converter', () => {
         done: {},
       },
     };
-    const machine = jmespathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     const [s1] = transition(machine, s0, { type: 'SUBMIT' });
     assert.strictEqual(s1.value, 'done');
@@ -746,7 +737,7 @@ describe('jmespath converter', () => {
         },
       },
     };
-    const machine = jmespathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     const [s1] = transition(machine, s0, {
       type: 'SELECT',
@@ -773,7 +764,7 @@ describe('jmespath converter', () => {
         low: {},
       },
     };
-    const machine = jmespathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
 
     // count=0 is falsy → falls to second branch
     const [s0] = initialTransition(machine);
@@ -819,7 +810,7 @@ describe('jsonpath converter', () => {
         },
       },
     };
-    const machine = jsonpathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     assert.strictEqual(s0.context.first, null);
 
@@ -847,7 +838,7 @@ describe('jsonpath converter', () => {
         active: {},
       },
     };
-    const machine = jsonpathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
 
     // Guard blocks: enabled is false
@@ -884,7 +875,7 @@ describe('jsonpath converter', () => {
         },
       },
     };
-    const machine = jsonpathToXStateMachine(spec);
+    const machine = convertSpecToMachine(spec);
     const [s0] = initialTransition(machine);
     const [s1] = transition(machine, s0, {
       type: 'UPDATE',
