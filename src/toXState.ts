@@ -45,6 +45,66 @@ export function parseISO8601Duration(value: string): number | string {
   );
 }
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value != null &&
+    typeof (value as PromiseLike<unknown>).then === 'function'
+  );
+}
+
+function evaluateSync(
+  evaluate: ExpressionEvaluator,
+  expression: string,
+  data: { context: any; event: any }
+) {
+  const result = evaluate(expression, data);
+
+  if (isPromiseLike(result)) {
+    throw new Error(
+      'Async expression evaluators are not supported by XState conversion. Provide a synchronous evaluator or use a synchronous query language.'
+    );
+  }
+
+  return result;
+}
+
+function sortTransitions(transitions: any[]): any[] {
+  return transitions
+    .map((transition, index) => ({ transition, index }))
+    .sort((a, b) => {
+      const orderA =
+        typeof a.transition.order === 'number'
+          ? a.transition.order
+          : Number.POSITIVE_INFINITY;
+      const orderB =
+        typeof b.transition.order === 'number'
+          ? b.transition.order
+          : Number.POSITIVE_INFINITY;
+
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      return a.index - b.index;
+    })
+    .map(({ transition }) => transition);
+}
+
+function assertSupportedInvoke(inv: any) {
+  const unsupportedKeys = ['timeout', 'heartbeat', 'retry'].filter(
+    (key) => inv[key] != null
+  );
+
+  if (unsupportedKeys.length) {
+    throw new Error(
+      `Unsupported invoke semantics for XState conversion: ${unsupportedKeys.join(
+        ', '
+      )}. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().`
+    );
+  }
+}
+
 function convertAction(action: any, evaluate: ExpressionEvaluator): any {
   switch (action.type) {
     case 'xstate.assign': {
@@ -55,7 +115,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
         if (isExpression(value)) {
           const expr = stripDelimiters(value);
           assignments[key] = ({ context, event }: any) =>
-            evaluate(expr, { context, event });
+            evaluateSync(evaluate, expr, { context, event });
         } else {
           // Static value — wrap in function for xstate v5
           const v = value;
@@ -69,7 +129,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       if (isExpression(evt)) {
         const expr = stripDelimiters(evt);
         return raise(({ context, event }: any) =>
-          evaluate(expr, { context, event })
+          evaluateSync(evaluate, expr, { context, event })
         );
       }
       return raise(evt);
@@ -78,17 +138,20 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       const { actorRef, event: evt, delay } = action.params;
       const actorArg = isExpression(actorRef)
         ? ({ context, event }: any) =>
-            evaluate(stripDelimiters(actorRef), { context, event })
+            evaluateSync(evaluate, stripDelimiters(actorRef), { context, event })
         : actorRef;
       const eventArg = isExpression(evt)
         ? ({ context, event }: any) =>
-            evaluate(stripDelimiters(evt), { context, event })
+            evaluateSync(evaluate, stripDelimiters(evt), { context, event })
         : evt;
       const opts: any = {};
       if (delay != null) {
         opts.delay = isExpression(delay)
           ? ({ context, event }: any) =>
-              evaluate(stripDelimiters(delay as string), { context, event })
+              evaluateSync(evaluate, stripDelimiters(delay as string), {
+                context,
+                event,
+              })
           : delay;
       }
       return sendTo(
@@ -103,7 +166,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
         if (isExpression(msg)) {
           const expr = stripDelimiters(msg);
           return xstateLog(({ context, event }: any) =>
-            evaluate(expr, { context, event })
+            evaluateSync(evaluate, expr, { context, event })
           );
         }
         return xstateLog(msg);
@@ -115,7 +178,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       if (isExpression(evt)) {
         const expr = stripDelimiters(evt);
         return xstateEmit(({ context, event }: any) =>
-          evaluate(expr, { context, event })
+          evaluateSync(evaluate, expr, { context, event })
         );
       }
       return xstateEmit(evt);
@@ -130,7 +193,7 @@ function convertGuard(guard: any, evaluate: ExpressionEvaluator): any {
   if (isExpression(guard)) {
     const expr = stripDelimiters(guard);
     return ({ context, event }: any) =>
-      Boolean(evaluate(expr, { context, event }));
+      Boolean(evaluateSync(evaluate, expr, { context, event }));
   }
   // Named guard
   return { type: guard.type, params: guard.params };
@@ -162,7 +225,9 @@ function convertTransition(t: any, evaluate: ExpressionEvaluator): any {
 function convertTransitions(trans: any, evaluate: ExpressionEvaluator): any {
   if (trans == null) return undefined;
   if (Array.isArray(trans))
-    return trans.map((t: any) => convertTransition(t, evaluate));
+    return sortTransitions(trans).map((t: any) =>
+      convertTransition(t, evaluate)
+    );
   return convertTransition(trans, evaluate);
 }
 
@@ -203,15 +268,20 @@ function convertState(state: any, evaluate: ExpressionEvaluator): any {
     result.always = convertTransitions(state.always, evaluate);
   }
 
+  if (state.onDone) {
+    result.onDone = convertTransitions(state.onDone, evaluate);
+  }
+
   if (state.invoke) {
     result.invoke = state.invoke.map((inv: any) => {
+      assertSupportedInvoke(inv);
       const r: any = { src: inv.src };
       if (inv.id) r.id = inv.id;
       if (inv.input != null) {
         if (isExpression(inv.input)) {
           const expr = stripDelimiters(inv.input);
           r.input = ({ context, event }: any) =>
-            evaluate(expr, { context, event });
+            evaluateSync(evaluate, expr, { context, event });
         } else {
           r.input = inv.input;
         }
@@ -220,10 +290,6 @@ function convertState(state: any, evaluate: ExpressionEvaluator): any {
       if (inv.onError) r.onError = convertTransitions(inv.onError, evaluate);
       if (inv.onSnapshot)
         r.onSnapshot = convertTransitions(inv.onSnapshot, evaluate);
-      // Pass retry config through as metadata
-      if (inv.retry) {
-        r.meta = { ...r.meta, retry: inv.retry };
-      }
       return r;
     });
   }
@@ -232,7 +298,7 @@ function convertState(state: any, evaluate: ExpressionEvaluator): any {
     if (isExpression(state.output)) {
       const expr = stripDelimiters(state.output);
       result.output = ({ context, event }: any) =>
-        evaluate(expr, { context, event });
+        evaluateSync(evaluate, expr, { context, event });
     } else {
       result.output = state.output;
     }

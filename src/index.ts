@@ -22,6 +22,9 @@ export {
   invokeSchema,
   stateSchema,
   schemasSchema,
+  jsonValueSchema,
+  profileSchema,
+  eventDescriptorSchema,
   machineSchema,
 } from './machineSchema';
 export type { StateMachine } from './machineSchema';
@@ -41,9 +44,8 @@ import {
 } from './toXState';
 import { createJmespathEvaluator } from './jmespath';
 import { createJsonpathEvaluator } from './jsonpath';
-import { createJsonataEvaluator } from './jsonata';
 
-export type QueryLanguage = 'jmespath' | 'jsonpath' | 'jsonata';
+export type QueryLanguage = string;
 
 export interface ConvertOptions {
   queryLanguage?: QueryLanguage;
@@ -62,7 +64,9 @@ function resolveEvaluator(
     case 'jsonpath':
       return createJsonpathEvaluator();
     case 'jsonata':
-      return createJsonataEvaluator();
+      throw new Error(
+        'The built-in jsonata evaluator is async and cannot be converted directly to an XState machine. Provide a synchronous evaluate() override or use jmespath/jsonpath.'
+      );
     default:
       throw new Error(
         `Unknown query language "${lang}". Specify queryLanguage in the spec or options.`

@@ -111,6 +111,20 @@
         }
       ]
     },
+    "onDone": {
+      "description": "Transitions triggered when this state reaches done status",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Transition"
+          }
+        },
+        {
+          "$ref": "#/$defs/Transition"
+        }
+      ]
+    },
     "invoke": {
       "description": "Invoked actors spawned when the state is entered",
       "type": "array",
@@ -133,7 +147,9 @@
           "type": "string",
           "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
         },
-        {}
+        {
+          "$ref": "#/$defs/__schema0"
+        }
       ]
     },
     "meta": {
@@ -141,20 +157,31 @@
       "$ref": "#/$defs/Meta"
     },
     "states": {
-      "$ref": "#/$defs/__schema0"
+      "description": "The child states",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/State"
+      }
+    },
+    "key": {
+      "description": "The root machine key used as the canonical path root",
+      "type": "string",
+      "minLength": 1
     },
     "version": {
       "description": "The machine version",
       "type": "string"
     },
+    "profile": {
+      "description": "Execution profile short name or URI",
+      "type": "string"
+    },
     "queryLanguage": {
       "description": "The expression language used for evaluating expressions in the machine",
-      "type": "string",
-      "enum": [
-        "jsonata",
-        "jmespath",
-        "jsonpath"
-      ]
+      "type": "string"
     },
     "context": {
       "description": "Initial context values",
@@ -162,19 +189,21 @@
       "propertyNames": {
         "type": "string"
       },
-      "additionalProperties": {}
-    },
-    "input": {
-      "description": "JSON Schema for machine input",
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {}
+      "additionalProperties": {
+        "$ref": "#/$defs/__schema0"
+      }
     },
     "schemas": {
       "type": "object",
       "properties": {
+        "input": {
+          "description": "JSON Schema for machine input",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
         "context": {
           "description": "JSON Schema definitions for each context property",
           "type": "object",
@@ -191,256 +220,99 @@
           }
         },
         "events": {
-          "description": "JSON Schema definitions for each event type",
+          "description": "JSON Schema definitions for each event payload by event type",
           "type": "object",
           "propertyNames": {
             "type": "string"
           },
           "additionalProperties": {
+            "description": "A JSON Schema property definition",
             "type": "object",
             "propertyNames": {
               "type": "string"
             },
-            "additionalProperties": {
-              "description": "A JSON Schema property definition",
-              "type": "object",
-              "propertyNames": {
-                "type": "string"
-              },
-              "additionalProperties": {}
-            }
+            "additionalProperties": {}
           }
+        },
+        "output": {
+          "description": "JSON Schema for machine output",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
         }
       },
       "additionalProperties": false
     }
   },
+  "required": [
+    "key"
+  ],
   "additionalProperties": false,
   "$defs": {
     "Action": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "id": "Action"
+    },
+    "__schema0": {
       "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "xstate.assign"
-            },
-            "params": {
-              "type": "object",
-              "propertyNames": {
-                "type": "string"
-              },
-              "additionalProperties": {
-                "anyOf": [
-                  {
-                    "description": "An expression string delimited by {{ }}",
-                    "type": "string",
-                    "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                  },
-                  {}
-                ]
-              }
-            }
-          },
-          "required": [
-            "type",
-            "params"
-          ],
-          "additionalProperties": false
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
         },
         {
           "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "xstate.raise"
-            },
-            "params": {
-              "type": "object",
-              "properties": {
-                "event": {
-                  "anyOf": [
-                    {
-                      "description": "An expression string delimited by {{ }}",
-                      "type": "string",
-                      "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                    },
-                    {}
-                  ]
-                }
-              },
-              "required": [
-                "event"
-              ],
-              "additionalProperties": false
-            }
+          "propertyNames": {
+            "type": "string"
           },
-          "required": [
-            "type",
-            "params"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "xstate.sendTo"
-            },
-            "params": {
-              "type": "object",
-              "properties": {
-                "actorRef": {
-                  "anyOf": [
-                    {
-                      "description": "An expression string delimited by {{ }}",
-                      "type": "string",
-                      "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                    },
-                    {
-                      "type": "string"
-                    }
-                  ]
-                },
-                "event": {
-                  "anyOf": [
-                    {
-                      "description": "An expression string delimited by {{ }}",
-                      "type": "string",
-                      "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                    },
-                    {}
-                  ]
-                },
-                "delay": {
-                  "anyOf": [
-                    {
-                      "description": "An expression string delimited by {{ }}",
-                      "type": "string",
-                      "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              "required": [
-                "actorRef",
-                "event"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "type",
-            "params"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "xstate.log"
-            },
-            "params": {
-              "type": "object",
-              "properties": {
-                "message": {
-                  "anyOf": [
-                    {
-                      "description": "An expression string delimited by {{ }}",
-                      "type": "string",
-                      "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                    },
-                    {
-                      "type": "string"
-                    }
-                  ]
-                }
-              },
-              "required": [
-                "message"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "xstate.emit"
-            },
-            "params": {
-              "type": "object",
-              "properties": {
-                "event": {
-                  "anyOf": [
-                    {
-                      "description": "An expression string delimited by {{ }}",
-                      "type": "string",
-                      "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
-                    },
-                    {}
-                  ]
-                }
-              },
-              "required": [
-                "event"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "type",
-            "params"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string"
-            },
-            "params": {
-              "type": "object",
-              "propertyNames": {
-                "type": "string"
-              },
-              "additionalProperties": {}
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
         }
-      ],
-      "id": "Action"
+      ]
     },
     "Transition": {
       "type": "object",
       "properties": {
         "target": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         "context": {
           "description": "Context assignments applied when this transition is taken. Appended as an assign action.",
@@ -455,7 +327,9 @@
                 "type": "string",
                 "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
               },
-              {}
+              {
+                "$ref": "#/$defs/__schema0"
+              }
             ]
           }
         },
@@ -477,6 +351,10 @@
         "order": {
           "description": "Explicit transition priority",
           "type": "number"
+        },
+        "reenter": {
+          "description": "Whether this transition re-enters target states",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -491,11 +369,7 @@
               "type": "string"
             },
             "params": {
-              "type": "object",
-              "propertyNames": {
-                "type": "string"
-              },
-              "additionalProperties": {}
+              "$ref": "#/$defs/__schema0"
             }
           },
           "required": [
@@ -516,7 +390,9 @@
       "propertyNames": {
         "type": "string"
       },
-      "additionalProperties": {},
+      "additionalProperties": {
+        "$ref": "#/$defs/__schema0"
+      },
       "id": "Meta"
     },
     "Invoke": {
@@ -536,7 +412,9 @@
               "type": "string",
               "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
             },
-            {}
+            {
+              "$ref": "#/$defs/__schema0"
+            }
           ]
         },
         "meta": {
@@ -544,7 +422,9 @@
           "propertyNames": {
             "type": "string"
           },
-          "additionalProperties": {}
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
         },
         "onDone": {
           "anyOf": [
@@ -631,16 +511,6 @@
       ],
       "additionalProperties": false,
       "id": "Invoke"
-    },
-    "__schema0": {
-      "description": "The child states",
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "$ref": "#/$defs/State"
-      }
     },
     "State": {
       "type": "object",
@@ -754,6 +624,20 @@
             }
           ]
         },
+        "onDone": {
+          "description": "Transitions triggered when this state reaches done status",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Transition"
+              }
+            },
+            {
+              "$ref": "#/$defs/Transition"
+            }
+          ]
+        },
         "invoke": {
           "description": "Invoked actors spawned when the state is entered",
           "type": "array",
@@ -776,7 +660,9 @@
               "type": "string",
               "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
             },
-            {}
+            {
+              "$ref": "#/$defs/__schema0"
+            }
           ]
         },
         "meta": {
@@ -784,7 +670,14 @@
           "$ref": "#/$defs/Meta"
         },
         "states": {
-          "$ref": "#/$defs/__schema0"
+          "description": "The child states",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/State"
+          }
         }
       },
       "additionalProperties": false,

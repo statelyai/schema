@@ -1,7 +1,7 @@
 import z from 'zod';
 
 export const queryLanguageSchema = z
-  .enum(['jsonata', 'jmespath', 'jsonpath'])
+  .string()
   .optional()
   .describe(
     'The expression language used for evaluating expressions in the machine'

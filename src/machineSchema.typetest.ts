@@ -53,8 +53,9 @@ function assert<T>(_value: T) {}
 // These compile-time tests verify assignability, not narrowness.
 // ============================================================
 
-assert<StateMachine>({});
+assert<StateMachine>({ key: 'machine' });
 assert<StateMachine>({
+  key: 'machine',
   version: '1.0',
   queryLanguage: 'jsonata',
   context: { count: 0 },
@@ -74,6 +75,8 @@ assert<State>({ type: 'history', history: 'deep' });
 // ============================================================
 
 assert<TransitionObject>({ target: 'foo' });
+assert<TransitionObject>({ target: ['foo', 'bar'], reenter: true });
+assert<TransitionObject>({ target: [] });
 assert<TransitionObject>({
   target: 'bar',
   guard: '{{ context.ready }}',
@@ -94,7 +97,7 @@ assert<TransitionObject>({
 // @ts-expect-error — string shorthand not allowed
 assert<TransitionObject>('target');
 
-// @ts-expect-error — target must be string
+// @ts-expect-error — target must be string or string[]
 assert<TransitionObject>({ target: 123 });
 
 // @ts-expect-error — actions must be array
@@ -123,7 +126,7 @@ assert<Transitions>(42);
 assert<Transitions>(['a', 'b']);
 
 // ============================================================
-// Actions — well-typed (xstate. prefixed)
+// Actions — well-typed, profile-defined by string type
 // ============================================================
 
 assert<AssignAction>({ type: 'xstate.assign', params: { x: 1, y: '{{ event.val }}' } });
@@ -138,28 +141,22 @@ assert<EmitAction>({ type: 'xstate.emit', params: { event: { type: 'NOTIFY' } } 
 assert<CustomAction>({ type: 'myAction', params: { foo: 'bar' } });
 assert<CustomAction>({ type: 'myAction' });
 
-// @ts-expect-error — assign requires params
 assert<AssignAction>({ type: 'xstate.assign' });
+assert<RaiseAction>({ type: 'xstate.raise', params: {} });
+assert<SendToAction>({ type: 'xstate.sendTo', params: { actorRef: 'a' } });
 
-// Note: Zod v4 infers params.event as optional at type level; validated at runtime
-assert<RaiseAction>({ type: 'xstate.raise', params: {} as any });
+// @ts-expect-error — action requires type
+assert<Action>({ params: { x: 1 } });
 
-// Note: Zod v4 infers params.event as optional at type level; validated at runtime
-assert<SendToAction>({ type: 'xstate.sendTo', params: { actorRef: 'a' } as any });
+// @ts-expect-error — action params must be JSON values
+assert<Action>({ type: 'custom', params: () => undefined });
 
-// @ts-expect-error — assign type must be literal 'xstate.assign'
+// Action aliases are backward-compatible generic action schemas.
+assert<AssignAction>({ type: 'xstate.assign' });
 assert<AssignAction>({ type: 'other', params: { x: 1 } });
-
-// @ts-expect-error — raise type must be literal 'xstate.raise'
 assert<RaiseAction>({ type: 'other', params: { event: 'E' } });
-
-// @ts-expect-error — sendTo type must be literal 'xstate.sendTo'
 assert<SendToAction>({ type: 'other', params: { actorRef: 'a', event: 'E' } });
-
-// @ts-expect-error — log type must be literal 'xstate.log'
 assert<LogAction>({ type: 'other' });
-
-// @ts-expect-error — emit type must be literal 'xstate.emit'
 assert<EmitAction>({ type: 'other', params: { event: 'E' } });
 
 // Action union accepts all
@@ -228,6 +225,11 @@ assert<Retry>({ interval: 1000 });
 
 assert<Schemas>({
   context: { count: { type: 'number' } },
-  events: { INCREMENT: { amount: { type: 'number' } } },
+  events: {
+    INCREMENT: {
+      type: 'object',
+      properties: { amount: { type: 'number' } },
+    },
+  },
 });
 assert<Schemas>(undefined);

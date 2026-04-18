@@ -12,6 +12,7 @@ npm install @statelyai/schema
 
 ```json
 {
+  "key": "order",
   "id": "order",
   "version": "1.0.0",
   "queryLanguage": "jmespath",
@@ -55,6 +56,10 @@ Values wrapped in `{{ }}` are evaluated at runtime using the configured `queryLa
 
 Expressions receive `{ context, event }` as their data root.
 
+The built-in `convertSpecToMachine()` and `convertSpecToConfig()` helpers require synchronous evaluation because they target XState's synchronous guards/actions. That means the built-in `jsonata` evaluator is not supported there; use `jmespath`, `jsonpath`, or pass a custom synchronous `evaluate` implementation.
+
+Those helpers also do not implement invoke-level `timeout`, `heartbeat`, or declarative `retry`; if those fields are present, conversion fails fast instead of silently dropping them.
+
 ## Converting to XState
 
 The `queryLanguage` in the spec is used to automatically resolve the expression evaluator:
@@ -75,7 +80,7 @@ import { convertSpecToMachine, convertSpecToConfig } from '@statelyai/schema';
 import type { ExpressionEvaluator } from '@statelyai/schema';
 
 // Override query language:
-const machine = convertSpecToMachine(spec, { queryLanguage: 'jsonata' });
+const machine = convertSpecToMachine(spec, { queryLanguage: 'jsonpath' });
 
 // Bring your own evaluator:
 const evaluate: ExpressionEvaluator = (expression, data) => { /* ... */ };
@@ -104,36 +109,42 @@ See the full [Stately Machine Specification](./spec.md) for formal definitions, 
 
 ### States
 
+<!-- state node properties aligned with spec.md and src/machineSchema.ts -->
+
 | Property | Type | Description |
 |---|---|---|
-| `id` | `string` | State node ID |
+| `id` | `string` | Optional explicit global alias |
 | `type` | `"parallel" \| "history" \| "final"` | State type (omit for normal states) |
-| `initial` | `string` | Initial child state |
+| `initial` | `string` | Immediate child key to enter first |
 | `states` | `Record<string, State>` | Child states |
-| `on` | `Record<string, Transition>` | Event-driven transitions |
+| `on` | `Record<EventDescriptor, Transition>` | Event-driven transitions |
 | `after` | `Record<string, Transition>` | Delayed transitions (ms or ISO 8601 duration) |
 | `always` | `Transition` | Eventless transitions |
+| `onDone` | `Transition` | Transitions taken when the state reaches done status |
 | `entry` | `Action[]` | Actions run on state entry |
 | `exit` | `Action[]` | Actions run on state exit |
 | `invoke` | `Invoke[]` | Actors spawned on entry |
 | `tags` | `string[]` | State tags |
-| `output` | `expression \| any` | Output for final states |
+| `output` | `expression \| JSON value` | Output for final states |
 | `history` | `"shallow" \| "deep"` | History type (when `type: "history"`) |
 | `target` | `string` | Default target for history states |
 | `description` | `string` | Human-readable description |
-| `meta` | `Record<string, any>` | Arbitrary metadata |
+| `meta` | `Record<string, JSON value>` | Arbitrary metadata |
 
 ### Machine (root state)
 
 Extends State with:
 
+<!-- root machine properties aligned with spec.md and src/machineSchema.ts -->
+
 | Property | Type | Description |
 |---|---|---|
+| `key` | `string` | Required root key used as the canonical path root |
 | `version` | `string` | Machine version |
-| `queryLanguage` | `"jsonata" \| "jmespath" \| "jsonpath"` | Expression language |
-| `context` | `Record<string, any>` | Initial context values |
-| `input` | `JSONSchema` | JSON Schema for machine input |
-| `schemas` | `{ context?, events? }` | JSON Schema definitions for context and events |
+| `profile` | `string` | Execution profile short name or URI |
+| `queryLanguage` | `string` | Expression language |
+| `context` | `Record<string, JSON value>` | Initial context values |
+| `schemas` | `{ input?, context?, events?, output? }` | JSON Schema definitions for input, context, event payloads, and output |
 
 ### Transitions
 
@@ -161,17 +172,20 @@ A transition is an object or an array of objects (for branching):
 
 | Property | Type | Description |
 |---|---|---|
-| `target` | `string` | Target state |
+| `target` | `string \| string[]` | Target state reference(s) |
 | `guard` | `expression \| NamedGuard` | Condition for taking transition |
-| `context` | `Record<string, expression \| any>` | Context assignments (appended as `xstate.assign`) |
+| `context` | `Record<string, expression \| JSON value>` | Context assignments (appended as `xstate.assign` by the XState converter) |
 | `actions` | `Action[]` | Actions to execute |
 | `description` | `string` | Human-readable description |
-| `meta` | `Record<string, any>` | Arbitrary metadata |
+| `meta` | `Record<string, JSON value>` | Arbitrary metadata |
 | `order` | `number` | Explicit transition priority |
+| `reenter` | `boolean` | Whether the transition re-enters target states |
 
 ### Actions
 
-Built-in actions are prefixed with `xstate.`:
+The core specification has no built-in actions. An action is `{ "type": string, "params"?: JSON value }`; profiles or converters define the semantics of action types.
+
+The XState converter recognizes `xstate.*` action types:
 
 ```json
 { "type": "xstate.assign", "params": { "count": "{{ context.count + 1 }}" } }
@@ -181,7 +195,7 @@ Built-in actions are prefixed with `xstate.`:
 { "type": "xstate.emit", "params": { "event": { "type": "NOTIFY" } } }
 ```
 
-Custom actions pass through to xstate (resolved via `setup()`):
+Other actions pass through to XState (resolved via `setup()`):
 
 ```json
 { "type": "trackAnalytics", "params": { "event": "checkout" } }
@@ -205,7 +219,7 @@ Named guard (resolved via `setup()`):
 |---|---|---|
 | `src` | `string` | Actor source (resolved via `setup()`) |
 | `id` | `string` | Actor ID |
-| `input` | `expression \| any` | Input passed to actor |
+| `input` | `expression \| JSON value` | Input passed to actor |
 | `onDone` | `Transition` | Transition when actor completes |
 | `onError` | `Transition` | Transition when actor fails |
 | `onSnapshot` | `Transition` | Transition on actor snapshot |

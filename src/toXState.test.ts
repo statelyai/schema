@@ -83,6 +83,7 @@ describe('parseISO8601Duration', () => {
 describe('toXStateConfig', () => {
   test('simple machine structure', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'idle',
       states: {
@@ -103,6 +104,7 @@ describe('toXStateConfig', () => {
 
   test('preserves context', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       context: { count: 0, name: 'test' },
       states: {},
@@ -113,6 +115,7 @@ describe('toXStateConfig', () => {
 
   test('preserves state metadata', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         idle: {
@@ -130,6 +133,7 @@ describe('toXStateConfig', () => {
 
   test('converts nested states', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'parent',
       states: {
@@ -150,6 +154,7 @@ describe('toXStateConfig', () => {
 
   test('converts parallel states', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       type: 'parallel',
       states: {
@@ -163,6 +168,7 @@ describe('toXStateConfig', () => {
 
   test('converts history states', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         hist: {
@@ -180,6 +186,7 @@ describe('toXStateConfig', () => {
 
   test('converts custom action passthrough', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         idle: {
@@ -196,6 +203,7 @@ describe('toXStateConfig', () => {
 
   test('converts transition array with guard', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         idle: {
@@ -219,8 +227,36 @@ describe('toXStateConfig', () => {
     assert.strictEqual(transitions[1].target, 'b');
   });
 
+  test('sorts transition arrays by explicit order', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      states: {
+        idle: {
+          on: {
+            EVENT: [
+              { target: 'b', order: 2 },
+              { target: 'a', order: 1 },
+              { target: 'c' },
+            ],
+          },
+        },
+        a: {},
+        b: {},
+        c: {},
+      },
+    };
+    const config = toXStateConfig(spec, noop);
+    const transitions = config.states.idle.on.EVENT;
+    assert.deepStrictEqual(
+      transitions.map((transition: any) => transition.target),
+      ['a', 'b', 'c']
+    );
+  });
+
   test('converts after (delayed) transitions', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         waiting: {
@@ -238,6 +274,7 @@ describe('toXStateConfig', () => {
 
   test('converts after with ISO 8601 duration to ms', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         waiting: {
@@ -259,6 +296,7 @@ describe('toXStateConfig', () => {
 
   test('converts always transitions', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         check: {
@@ -272,8 +310,28 @@ describe('toXStateConfig', () => {
     assert.strictEqual(typeof config.states.check.always.guard, 'function');
   });
 
+  test('converts state onDone transitions', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      states: {
+        parent: {
+          initial: 'complete',
+          states: {
+            complete: { type: 'final' },
+          },
+          onDone: { target: 'done' },
+        },
+        done: { type: 'final' },
+      },
+    };
+    const config = toXStateConfig(spec, noop);
+    assert.strictEqual(config.states.parent.onDone.target, 'done');
+  });
+
   test('converts named guard', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         idle: {
@@ -294,6 +352,7 @@ describe('toXStateConfig', () => {
 
   test('converts invoke', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         loading: {
@@ -318,14 +377,17 @@ describe('toXStateConfig', () => {
     assert.strictEqual(inv.onError.target, 'failure');
   });
 
-  test('converts invoke retry as metadata', () => {
+  test('rejects unsupported invoke timeout/heartbeat/retry semantics', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         loading: {
           invoke: [
             {
               src: 'fetchData',
+              timeout: 'PT30S',
+              heartbeat: 'PT5S',
               retry: { maxAttempts: 3, interval: 1000, backoff: 2 },
               onDone: { target: 'success' },
             },
@@ -334,17 +396,15 @@ describe('toXStateConfig', () => {
         success: {},
       },
     };
-    const config = toXStateConfig(spec, noop);
-    const inv = config.states.loading.invoke[0];
-    assert.deepStrictEqual(inv.meta.retry, {
-      maxAttempts: 3,
-      interval: 1000,
-      backoff: 2,
-    });
+    assert.throws(
+      () => toXStateConfig(spec, noop),
+      /unsupported invoke semantics.*timeout, heartbeat, retry/i
+    );
   });
 
   test('transition context shorthand appends assign action', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'idle',
       context: { count: 0 },
@@ -367,6 +427,7 @@ describe('toXStateConfig', () => {
 
   test('transition context shorthand merges with explicit actions', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'idle',
       context: { count: 0 },
@@ -391,6 +452,7 @@ describe('toXStateConfig', () => {
 
   test('converts emit action with static event', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         idle: {
@@ -411,6 +473,7 @@ describe('toXStateConfig', () => {
 
   test('converts emit action with expression event', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         idle: {
@@ -430,6 +493,7 @@ describe('toXStateConfig', () => {
 
   test('converts final state output expression', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         done: {
@@ -444,6 +508,7 @@ describe('toXStateConfig', () => {
 
   test('converts final state static output', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       states: {
         done: {
@@ -462,6 +527,7 @@ describe('toXStateConfig', () => {
 describe('toXStateMachine', () => {
   test('basic transitions via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'idle',
       states: {
@@ -547,8 +613,57 @@ describe('jsonata converter', () => {
     assert.strictEqual(result, 'a');
   });
 
+  test('built-in jsonata conversion fails fast', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      initial: 'idle',
+      states: {
+        idle: { on: { GO: { target: 'active' } } },
+        active: {},
+      },
+    };
+
+    assert.throws(() => convertSpecToConfig(spec), /jsonata evaluator is async/i);
+    assert.throws(() => convertSpecToMachine(spec), /jsonata evaluator is async/i);
+  });
+
+  test('async evaluators are rejected during execution', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'idle',
+      context: { count: 0 },
+      states: {
+        idle: {
+          on: {
+            INC: {
+              target: 'idle',
+              actions: [
+                {
+                  type: 'xstate.assign',
+                  params: { count: '{{ context.count + 1 }}' },
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const machine = convertSpecToMachine(spec, {
+      evaluate: async () => 1,
+    });
+    const [state] = initialTransition(machine);
+
+    assert.throws(
+      () => transition(machine, state, { type: 'INC' }),
+      /async expression evaluators are not supported/i
+    );
+  });
+
   test('convertSpecToConfig produces config with expression wrappers', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'idle',
       context: { count: 0 },
@@ -568,7 +683,15 @@ describe('jsonata converter', () => {
         },
       },
     };
-    const config = convertSpecToConfig(spec);
+    const config = convertSpecToConfig(spec, {
+      evaluate: (expression, data) => {
+        if (expression === 'context.count + 1') {
+          return data.context.count + 1;
+        }
+
+        return undefined;
+      },
+    });
     assert.strictEqual(config.initial, 'idle');
     assert.deepStrictEqual(config.context, { count: 0 });
     const actions = config.states.idle.on.INC.actions;
@@ -577,6 +700,7 @@ describe('jsonata converter', () => {
 
   test('convertSpecToMachine transitions work', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonata',
       initial: 'idle',
       states: {
@@ -584,7 +708,9 @@ describe('jsonata converter', () => {
         active: { on: { STOP: { target: 'idle' } } },
       },
     };
-    const machine = convertSpecToMachine(spec);
+    const machine = convertSpecToMachine(spec, {
+      evaluate: () => undefined,
+    });
     const [s0] = initialTransition(machine);
     assert.strictEqual(s0.value, 'idle');
     const [s1] = transition(machine, s0, { type: 'GO' });
@@ -605,6 +731,7 @@ describe('jmespath converter', () => {
 
   test('jmespath assign updates context via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jmespath',
       initial: 'idle',
       context: { name: 'world', greeting: '' },
@@ -634,6 +761,7 @@ describe('jmespath converter', () => {
 
   test('jmespath guard blocks/allows transitions via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jmespath',
       initial: 'idle',
       context: { ready: false },
@@ -670,6 +798,7 @@ describe('jmespath converter', () => {
 
   test('jmespath transition context shorthand assigns via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jmespath',
       initial: 'idle',
       context: { name: 'world', greeting: '' },
@@ -694,6 +823,7 @@ describe('jmespath converter', () => {
 
   test('jmespath transition context shorthand with static values', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jmespath',
       initial: 'idle',
       context: { status: 'pending' },
@@ -718,6 +848,7 @@ describe('jmespath converter', () => {
 
   test('jmespath event data access via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jmespath',
       initial: 'idle',
       context: { selected: null },
@@ -748,6 +879,7 @@ describe('jmespath converter', () => {
 
   test('jmespath branching with multiple guards via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jmespath',
       initial: 'idle',
       context: { count: 0 },
@@ -791,6 +923,7 @@ describe('jsonpath converter', () => {
 
   test('jsonpath assign updates context via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonpath',
       initial: 'idle',
       context: { items: ['a', 'b', 'c'], first: null },
@@ -820,6 +953,7 @@ describe('jsonpath converter', () => {
 
   test('jsonpath guard blocks/allows transitions via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonpath',
       initial: 'idle',
       context: { enabled: false },
@@ -856,6 +990,7 @@ describe('jsonpath converter', () => {
 
   test('jsonpath event data access via transition()', () => {
     const spec: StateMachine = {
+      key: 'machine',
       queryLanguage: 'jsonpath',
       initial: 'idle',
       context: { lastEvent: null },

@@ -6,13 +6,14 @@ import { getNode, getEdgesOf, getChildren } from '@statelyai/graph';
 
 describe('machineToGraph', () => {
   test('empty machine', () => {
-    const graph = machineToGraph({});
+    const graph = machineToGraph({ key: 'machine' });
     assert.strictEqual(graph.nodes.length, 0);
     assert.strictEqual(graph.edges.length, 0);
   });
 
   test('single state', () => {
     const graph = machineToGraph({
+      key: 'machine',
       initial: 'idle',
       states: { idle: {} },
     });
@@ -22,6 +23,7 @@ describe('machineToGraph', () => {
 
   test('event transitions become edges', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'a',
       states: {
         a: { on: { GO: { target: 'b' } } },
@@ -38,6 +40,7 @@ describe('machineToGraph', () => {
 
   test('branching transitions create multiple edges', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'a',
       states: {
         a: {
@@ -57,8 +60,55 @@ describe('machineToGraph', () => {
     assert.strictEqual(edgesFromA.length, 2);
   });
 
+  test('array targets create one edge per target', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'a',
+      states: {
+        a: {
+          on: {
+            SPLIT: { target: ['b', 'c'] },
+            EMPTY: { target: [] },
+          },
+        },
+        b: {},
+        c: {},
+      },
+    };
+    const graph = machineToGraph(spec);
+    assert.deepStrictEqual(
+      graph.edges.map((edge) => edge.targetId),
+      ['b', 'c']
+    );
+  });
+
+  test('transition order is reflected in edge ordering', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'a',
+      states: {
+        a: {
+          on: {
+            GO: [
+              { target: 'c', order: 2 },
+              { target: 'b', order: 1 },
+            ],
+          },
+        },
+        b: {},
+        c: {},
+      },
+    };
+    const graph = machineToGraph(spec);
+    assert.deepStrictEqual(
+      graph.edges.map((edge) => edge.targetId),
+      ['b', 'c']
+    );
+  });
+
   test('delayed transitions', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'waiting',
       states: {
         waiting: {
@@ -74,6 +124,7 @@ describe('machineToGraph', () => {
 
   test('always transitions', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'check',
       states: {
         check: {
@@ -87,8 +138,31 @@ describe('machineToGraph', () => {
     assert.strictEqual(graph.edges[0].label, 'always');
   });
 
+  test('state onDone transitions', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'parent',
+      states: {
+        parent: {
+          initial: 'complete',
+          states: {
+            complete: { type: 'final' },
+          },
+          onDone: { target: 'done' },
+        },
+        done: {},
+      },
+    };
+    const graph = machineToGraph(spec);
+    assert.strictEqual(graph.edges.length, 1);
+    assert.strictEqual(graph.edges[0].label, 'onDone');
+    assert.strictEqual(graph.edges[0].sourceId, 'parent');
+    assert.strictEqual(graph.edges[0].targetId, 'done');
+  });
+
   test('invoke onDone/onError transitions', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'loading',
       states: {
         loading: {
@@ -112,6 +186,7 @@ describe('machineToGraph', () => {
 
   test('nested states use dot-separated IDs with parentId', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'parent',
       states: {
         parent: {
@@ -138,8 +213,46 @@ describe('machineToGraph', () => {
     assert.strictEqual(graph.edges[0].targetId, 'parent.child2');
   });
 
+  test('nested target references distinguish sibling and child forms', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'parent',
+      states: {
+        parent: {
+          initial: 'source',
+          states: {
+            source: {
+              initial: 'idle',
+              states: {
+                idle: {
+                  states: {
+                    child: { states: { grandchild: {} } },
+                  },
+                  on: {
+                    SIBLING: { target: 'sibling.grandchild' },
+                    CHILD: { target: '.child.grandchild' },
+                  },
+                },
+                sibling: { states: { grandchild: {} } },
+              },
+            },
+          },
+        },
+      },
+    };
+    const graph = machineToGraph(spec);
+    assert.deepStrictEqual(
+      graph.edges.map((edge) => edge.targetId),
+      [
+        'parent.source.sibling.grandchild',
+        'parent.source.idle.child.grandchild',
+      ]
+    );
+  });
+
   test('preserves state metadata in node data', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'idle',
       states: {
         idle: {
@@ -159,6 +272,7 @@ describe('machineToGraph', () => {
 
   test('state type preserved in node data', () => {
     const spec: StateMachine = {
+      key: 'machine',
       initial: 'a',
       states: {
         a: { on: { GO: { target: 'done' } } },

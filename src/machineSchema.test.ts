@@ -1,15 +1,18 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { machineSchema } from './machineSchema';
-import z from 'zod';
+
+function parseMachine(machine: Record<string, unknown>) {
+  return machineSchema.parse({ key: 'machine', ...machine });
+}
 
 describe('machineSchema', () => {
   test('trivial machine', () => {
-    machineSchema.parse({});
+    parseMachine({});
   });
 
   test('all basic properties', () => {
-    machineSchema.parse({
+    parseMachine({
       id: 'test',
       description: 'test',
       version: '1.0.0',
@@ -21,64 +24,149 @@ describe('machineSchema', () => {
   });
 
   test('invalid machine', () => {
-    assert.throws(() => machineSchema.parse({ id: 3 }));
+    assert.throws(() => parseMachine({ id: 3 }));
+  });
+
+  test('unknown top-level properties are rejected', () => {
+    assert.throws(() =>
+      parseMachine({
+        initial: 'idle',
+        states: { idle: {} },
+        bogus: true,
+      })
+    );
   });
 
   // --- queryLanguage ---
 
   test('queryLanguage', () => {
-    machineSchema.parse({ queryLanguage: 'jsonata' });
-    machineSchema.parse({ queryLanguage: 'jmespath' });
-    machineSchema.parse({ queryLanguage: 'jsonpath' });
+    parseMachine({ queryLanguage: 'jsonata' });
+    parseMachine({ queryLanguage: 'jmespath' });
+    parseMachine({ queryLanguage: 'jsonpath' });
+    parseMachine({ queryLanguage: 'sql' });
   });
 
-  test('invalid queryLanguage', () => {
-    assert.throws(() => machineSchema.parse({ queryLanguage: 'sql' }));
+  test('machine key is required and constrained', () => {
+    assert.throws(() => machineSchema.parse({}));
+    assert.throws(() => machineSchema.parse({ key: 'foo.bar' }));
+    assert.throws(() => machineSchema.parse({ key: '#foo' }));
+    machineSchema.parse({ key: 'foo' });
   });
 
   // --- Context ---
 
   test('context with initial values', () => {
-    machineSchema.parse({
+    parseMachine({
       context: { count: 0, name: '', items: [] },
     });
+  });
+
+  test('freeform values must be JSON values', () => {
+    assert.throws(() =>
+      parseMachine({
+        context: { fn: () => undefined },
+      })
+    );
+    assert.throws(() =>
+      parseMachine({
+        context: { infinite: Number.POSITIVE_INFINITY },
+      })
+    );
+    assert.throws(() =>
+      parseMachine({
+        states: {
+          idle: {
+            entry: [{ type: 'custom', params: () => undefined }],
+          },
+        },
+      })
+    );
   });
 
   // --- Schemas ---
 
   test('schemas for context and events', () => {
-    machineSchema.parse({
+    parseMachine({
       context: { count: 0 },
       schemas: {
+        input: {
+          type: 'object',
+          properties: { orderId: { type: 'string' } },
+        },
         context: {
           count: { type: 'number' },
         },
         events: {
           INCREMENT: {
-            amount: { type: 'number' },
+            type: 'object',
+            properties: {
+              amount: { type: 'number' },
+            },
           },
         },
       },
     });
   });
 
+  test('event schemas are exact event types, not descriptors', () => {
+    assert.throws(() =>
+      parseMachine({
+        schemas: {
+          events: {
+            '*': {},
+          },
+        },
+      })
+    );
+    assert.throws(() =>
+      parseMachine({
+        schemas: {
+          events: {
+            'feedback.*': {},
+          },
+        },
+      })
+    );
+  });
+
   // --- Input ---
 
-  test('input JSON Schema', () => {
-    machineSchema.parse({
-      input: {
-        type: 'object',
-        properties: {
-          orderId: { type: 'string' },
+  test('input JSON Schema lives under schemas', () => {
+    parseMachine({
+      schemas: {
+        input: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string' },
+          },
         },
       },
     });
   });
 
+  test('top-level input is rejected', () => {
+    assert.throws(() =>
+      parseMachine({
+        input: {
+          type: 'object',
+        },
+      })
+    );
+  });
+
+  // --- Profiles ---
+
+  test('profile is a registered name or URI', () => {
+    parseMachine({ profile: 'xstate' });
+    parseMachine({ profile: 'https://example.com/profiles/my-runtime' });
+    parseMachine({ profile: 'urn:example:profile' });
+    assert.throws(() => parseMachine({ profile: 'fake' }));
+  });
+
   // --- Expressions ---
 
   test('assign action with expressions', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'active',
       states: {
         active: {
@@ -97,7 +185,7 @@ describe('machineSchema', () => {
   });
 
   test('inline guard expression', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'active',
       states: {
         active: {
@@ -114,7 +202,7 @@ describe('machineSchema', () => {
   });
 
   test('named guard object', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'active',
       states: {
         active: {
@@ -133,7 +221,7 @@ describe('machineSchema', () => {
   // --- Transition object ---
 
   test('transition object', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -148,7 +236,7 @@ describe('machineSchema', () => {
 
   test('string transition shorthand rejected', () => {
     assert.throws(() =>
-      machineSchema.parse({
+      parseMachine({
         initial: 'a',
         states: {
           a: {
@@ -162,8 +250,54 @@ describe('machineSchema', () => {
     );
   });
 
+  test('final states may contain vestigial fields structurally', () => {
+    parseMachine({
+      initial: 'done',
+      states: {
+        done: {
+          type: 'final',
+          on: { RETRY: { target: 'done' } },
+          states: { ignored: {} },
+        },
+      },
+    });
+  });
+
+  test('compound states may omit initial structurally', () => {
+    parseMachine({
+      initial: 'parent',
+      states: {
+        parent: {
+          states: {
+            child: {},
+          },
+        },
+      },
+    });
+  });
+
+  test('initial must reference an immediate child when present', () => {
+    assert.throws(() =>
+      parseMachine({
+        initial: 'missing',
+        states: { idle: {} },
+      })
+    );
+    assert.throws(() =>
+      parseMachine({
+        initial: 'parent',
+        states: {
+          parent: {
+            initial: 'missing',
+            states: { child: {} },
+          },
+        },
+      })
+    );
+  });
+
   test('transition with context shorthand', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -179,7 +313,7 @@ describe('machineSchema', () => {
   });
 
   test('transition with context shorthand and static value', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -195,7 +329,7 @@ describe('machineSchema', () => {
   });
 
   test('transition with order', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -212,10 +346,61 @@ describe('machineSchema', () => {
     });
   });
 
+  test('transition supports array targets, empty targets, and reenter', () => {
+    parseMachine({
+      initial: 'a',
+      states: {
+        a: {
+          on: {
+            SPLIT: { target: ['b', 'c'], reenter: true },
+            FORBID: {},
+            NO_TARGETS: { target: [] },
+          },
+        },
+        b: {},
+        c: {},
+      },
+    });
+  });
+
+  test('event descriptors allow exact, wildcard, and partial wildcard', () => {
+    parseMachine({
+      initial: 'a',
+      states: {
+        a: {
+          on: {
+            GO: {},
+            '*': {},
+            'feedback.*': {},
+          },
+        },
+      },
+    });
+  });
+
+  test('malformed event descriptors are rejected', () => {
+    assert.throws(() =>
+      parseMachine({
+        initial: 'a',
+        states: {
+          a: { on: { 'feedback.*.bad': {} } },
+        },
+      })
+    );
+    assert.throws(() =>
+      parseMachine({
+        initial: 'a',
+        states: {
+          a: { on: { 'feedback*': {} } },
+        },
+      })
+    );
+  });
+
   // --- Built-in actions ---
 
   test('raise action', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -226,7 +411,7 @@ describe('machineSchema', () => {
   });
 
   test('sendTo action', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -245,7 +430,7 @@ describe('machineSchema', () => {
   });
 
   test('log action', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -259,7 +444,7 @@ describe('machineSchema', () => {
   });
 
   test('emit action', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -279,7 +464,7 @@ describe('machineSchema', () => {
   });
 
   test('custom action', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'a',
       states: {
         a: {
@@ -291,10 +476,21 @@ describe('machineSchema', () => {
     });
   });
 
+  test('profile-prefixed action types are structural only', () => {
+    parseMachine({
+      initial: 'a',
+      states: {
+        a: {
+          entry: [{ type: 'xstate.assign' }],
+        },
+      },
+    });
+  });
+
   // --- Tags ---
 
   test('state tags', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'loading',
       states: {
         loading: { tags: ['busy', 'pending'] },
@@ -306,7 +502,7 @@ describe('machineSchema', () => {
   // --- Output ---
 
   test('final state output', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'active',
       states: {
         active: {
@@ -321,7 +517,7 @@ describe('machineSchema', () => {
   });
 
   test('final state static output', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'active',
       states: {
         active: { on: { DONE: { target: 'complete' } } },
@@ -336,7 +532,7 @@ describe('machineSchema', () => {
   // --- Invoke extensions ---
 
   test('invoke with input, onSnapshot, timeout', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'processing',
       states: {
         processing: {
@@ -369,8 +565,24 @@ describe('machineSchema', () => {
     });
   });
 
+  test('state onDone transitions', () => {
+    parseMachine({
+      initial: 'parent',
+      states: {
+        parent: {
+          initial: 'complete',
+          states: {
+            complete: { type: 'final' },
+          },
+          onDone: { target: 'done' },
+        },
+        done: { type: 'final' },
+      },
+    });
+  });
+
   test('invoke with retry policy', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'loading',
       states: {
         loading: {
@@ -390,7 +602,7 @@ describe('machineSchema', () => {
   });
 
   test('invoke with retry ISO duration interval', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'loading',
       states: {
         loading: {
@@ -410,7 +622,7 @@ describe('machineSchema', () => {
   // --- After with ISO 8601 ---
 
   test('after with ISO 8601 duration', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'waiting',
       states: {
         waiting: {
@@ -426,7 +638,7 @@ describe('machineSchema', () => {
   // --- History states ---
 
   test('history state', () => {
-    machineSchema.parse({
+    parseMachine({
       initial: 'active',
       states: {
         active: {
@@ -444,7 +656,7 @@ describe('machineSchema', () => {
   // --- Parallel states ---
 
   test('parallel state', () => {
-    machineSchema.parse({
+    parseMachine({
       type: 'parallel',
       states: {
         upload: {
@@ -462,23 +674,28 @@ describe('machineSchema', () => {
   // --- Full integration ---
 
   test('full order flow machine', () => {
-    machineSchema.parse({
+    parseMachine({
       version: '1.0.0',
       id: 'orderFlow',
       queryLanguage: 'jsonata',
-      input: {
-        type: 'object',
-        properties: { orderId: { type: 'string' } },
-      },
       context: { retries: 0, result: null, items: [] },
       schemas: {
+        input: {
+          type: 'object',
+          properties: { orderId: { type: 'string' } },
+        },
         context: {
           retries: { type: 'number' },
           result: {},
           items: { type: 'array' },
         },
         events: {
-          SUBMIT: { paymentMethod: { type: 'string' } },
+          SUBMIT: {
+            type: 'object',
+            properties: {
+              paymentMethod: { type: 'string' },
+            },
+          },
         },
       },
       initial: 'pending',
@@ -550,6 +767,6 @@ describe('machineSchema', () => {
         cancelled: { type: 'final' },
         failed: { type: 'final' },
       },
-    } satisfies z.infer<typeof machineSchema>);
+    });
   });
 });

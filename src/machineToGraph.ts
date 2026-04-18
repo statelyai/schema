@@ -48,10 +48,11 @@ export function machineToGraph(machine: StateMachine): Graph {
           const transitions = normalizeTransitions(trans);
           for (let i = 0; i < transitions.length; i++) {
             const t = transitions[i];
-            if (t.target) {
-              const targetId = resolveTarget(t.target, pathPrefix);
+            const targets = normalizeTargets(t.target);
+            for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
+              const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
               pendingEdges.push({
-                id: `${nodeId}|${event}|${targetId}|${i}`,
+                id: `${nodeId}|${event}|${targetId}|${i}|${targetIndex}`,
                 sourceId: nodeId,
                 targetId,
                 label: event,
@@ -60,6 +61,7 @@ export function machineToGraph(machine: StateMachine): Graph {
                   guard: t.guard,
                   description: t.description,
                   meta: t.meta,
+                  order: t.order,
                 },
               });
             }
@@ -73,10 +75,11 @@ export function machineToGraph(machine: StateMachine): Graph {
           const transitions = normalizeTransitions(trans);
           for (let i = 0; i < transitions.length; i++) {
             const t = transitions[i];
-            if (t.target) {
-              const targetId = resolveTarget(t.target, pathPrefix);
+            const targets = normalizeTargets(t.target);
+            for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
+              const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
               pendingEdges.push({
-                id: `${nodeId}|after:${delay}|${targetId}|${i}`,
+                id: `${nodeId}|after:${delay}|${targetId}|${i}|${targetIndex}`,
                 sourceId: nodeId,
                 targetId,
                 label: `after ${delay}`,
@@ -85,6 +88,7 @@ export function machineToGraph(machine: StateMachine): Graph {
                   guard: t.guard,
                   description: t.description,
                   meta: t.meta,
+                  order: t.order,
                 },
               });
             }
@@ -97,10 +101,11 @@ export function machineToGraph(machine: StateMachine): Graph {
         const transitions = normalizeTransitions(state.always);
         for (let i = 0; i < transitions.length; i++) {
           const t = transitions[i];
-          if (t.target) {
-            const targetId = resolveTarget(t.target, pathPrefix);
+          const targets = normalizeTargets(t.target);
+          for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
+            const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
             pendingEdges.push({
-              id: `${nodeId}|always|${targetId}|${i}`,
+              id: `${nodeId}|always|${targetId}|${i}|${targetIndex}`,
               sourceId: nodeId,
               targetId,
               label: 'always',
@@ -108,6 +113,31 @@ export function machineToGraph(machine: StateMachine): Graph {
                 guard: t.guard,
                 description: t.description,
                 meta: t.meta,
+                order: t.order,
+              },
+            });
+          }
+        }
+      }
+
+      // Done transitions
+      if (state.onDone) {
+        const transitions = normalizeTransitions(state.onDone);
+        for (let i = 0; i < transitions.length; i++) {
+          const t = transitions[i];
+          const targets = normalizeTargets(t.target);
+          for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
+            const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
+            pendingEdges.push({
+              id: `${nodeId}|onDone|${targetId}|${i}|${targetIndex}`,
+              sourceId: nodeId,
+              targetId,
+              label: 'onDone',
+              data: {
+                guard: t.guard,
+                description: t.description,
+                meta: t.meta,
+                order: t.order,
               },
             });
           }
@@ -122,11 +152,20 @@ export function machineToGraph(machine: StateMachine): Graph {
               const transitions = normalizeTransitions(inv[invKey]);
               for (let i = 0; i < transitions.length; i++) {
                 const t = transitions[i];
-                if (t.target) {
-                  const targetId = resolveTarget(t.target, pathPrefix);
+                const targets = normalizeTargets(t.target);
+                for (
+                  let targetIndex = 0;
+                  targetIndex < targets.length;
+                  targetIndex++
+                ) {
+                  const targetId = resolveTarget(
+                    targets[targetIndex],
+                    pathPrefix,
+                    nodeId
+                  );
                   const label = `${inv.src}.${invKey}`;
                   pendingEdges.push({
-                    id: `${nodeId}|${label}|${targetId}|${i}`,
+                    id: `${nodeId}|${label}|${targetId}|${i}|${targetIndex}`,
                     sourceId: nodeId,
                     targetId,
                     label,
@@ -136,6 +175,7 @@ export function machineToGraph(machine: StateMachine): Graph {
                       guard: t.guard,
                       description: t.description,
                       meta: t.meta,
+                      order: t.order,
                     },
                   });
                 }
@@ -172,14 +212,50 @@ export function machineToGraph(machine: StateMachine): Graph {
 
 function normalizeTransitions(
   transitions: any
-): Array<{ target?: string; guard?: any; description?: string; meta?: any }> {
+): Array<{
+  target?: string | string[];
+  guard?: any;
+  description?: string;
+  meta?: any;
+  order?: number;
+}> {
   if (!transitions) return [];
-  if (Array.isArray(transitions)) return transitions;
+  if (Array.isArray(transitions)) {
+    return transitions
+      .map((transition, index) => ({ transition, index }))
+      .sort((a, b) => {
+        const orderA =
+          typeof a.transition.order === 'number'
+            ? a.transition.order
+            : Number.POSITIVE_INFINITY;
+        const orderB =
+          typeof b.transition.order === 'number'
+            ? b.transition.order
+            : Number.POSITIVE_INFINITY;
+
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+
+        return a.index - b.index;
+      })
+      .map(({ transition }) => transition);
+  }
   return [transitions];
 }
 
-function resolveTarget(target: string, pathPrefix: string): string {
+function normalizeTargets(target: string | string[] | undefined): string[] {
+  if (target == null) return [];
+  return Array.isArray(target) ? target : [target];
+}
+
+function resolveTarget(
+  target: string,
+  pathPrefix: string,
+  sourceId: string
+): string {
   if (target.startsWith('#')) return target.slice(1);
+  if (target.startsWith('.')) return `${sourceId}${target}`;
   if (pathPrefix) return `${pathPrefix}.${target}`;
   return target;
 }

@@ -7,6 +7,10 @@ export default defineConfig({
     'src/jmespath.ts',
     'src/jsonpath.ts',
   ],
+  deps: {
+    alwaysBundle: ['@statelyai/graph'],
+    onlyBundle: false,
+  },
   format: ['cjs', 'esm'],
   dts: true,
   clean: true,
