@@ -1,0 +1,57 @@
+{
+  "key": "oauth2-authentication",
+  "id": "examples.oauth2-authentication",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getPet",
+  "states": {
+    "getPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": {
+                "uri": "https://petstore.swagger.io/v2/pet/{petId}",
+                "authentication": {
+                  "oauth2": {
+                    "authority": "http://keycloak/realms/fake-authority",
+                    "endpoints": {
+                      "token": "/auth/token",
+                      "introspection": "/auth/introspect"
+                    },
+                    "grant": "client_credentials",
+                    "client": {
+                      "id": "workflow-runtime-id",
+                      "secret": "workflow-runtime-secret"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "authentication-oauth2.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "oauth2-authentication",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

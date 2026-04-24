@@ -2,7 +2,7 @@
 
 **Version:** 0.1.0 (Draft)
 
-This document defines a JSON-based format for describing state machines, statecharts, and workflows. The core format is runtime-agnostic: it defines document structure, references, transitions, expressions, schemas, and extension points, but it does not define built-in actions, built-in named guards, or actor implementations.
+This document defines a JSON-based format for describing state machines, statecharts, and workflows. The core format is runtime-agnostic: it defines document structure, references, transitions, expressions, schemas, a small set of core action semantics, and extension points, but it does not define built-in named guards or actor implementations.
 
 ## Overview
 
@@ -13,8 +13,8 @@ Machines are hierarchical. States can contain child states, transitions move bet
 ### Design Principles
 
 1. **JSON-native.** Documents MUST be representable as JSON. Freeform data fields contain JSON values only.
-2. **Runtime-agnostic core.** The core spec defines structure and common statechart concepts. Execution details for action names, named guard names, and actor sources are profile-defined.
-3. **Profile-extensible.** A machine MAY declare a profile that gives semantics to `Action.type`, named `Guard.type`, and `Invoke.src`.
+2. **Runtime-agnostic core.** The core spec defines structure and common statechart concepts. Most execution details for action names, named guard names, and actor sources are profile-defined.
+3. **Profile-extensible.** A machine MAY declare a profile that gives semantics to non-core `Action.type` values, named `Guard.type`, and `Invoke.src`.
 4. **Expression-agnostic.** Expressions are strings wrapped in `{{ }}`. `queryLanguage` declares which expression language interprets them.
 5. **Permissive first pass.** This draft favors structural validity and local invariants over deep logical validation. Recognized but vestigial constructs are generally warnings rather than errors.
 
@@ -79,15 +79,15 @@ The only required root field is `key`. A machine with only `key` is well-formed.
 
 ## Profiles
 
-The core spec defines no built-in action names, named guard names, or actor source names.
+The core spec defines `core.assign` as a built-in action. It defines no built-in named guard names or actor source names.
 
 A profile MAY define semantics for:
 
-- `Action.type`
+- non-core `Action.type`
 - named `Guard.type`
 - `Invoke.src`
 
-A profile MUST NOT redefine the core document shape, reference grammar, event descriptor grammar, or `initial` semantics. In this version, profile-specific behavior is expressed through names and `params`; profile-specific extra fields are not part of the core format.
+A profile MUST NOT redefine the core document shape, reference grammar, event descriptor grammar, or `initial` semantics. Profiles MAY define additional JSON-valued fields on profile-defined action objects.
 
 `profile` is a single optional string. Its value MUST be either:
 
@@ -100,7 +100,9 @@ Unknown short profile names are errors. Unknown URI profile identifiers are well
 
 | Short name | Canonical URI | Reference |
 |---|---|---|
-| `xstate` | Deferred | Deferred XState profile document |
+| `xstate` | Deferred | [XState profile](./profiles/xstate.md) |
+
+This repository also includes an informative [Serverless Workflow profile](./profiles/serverlessworkflow.md) for URI-based profile identifiers used by the converted examples.
 
 ## States
 
@@ -240,16 +242,41 @@ Machine output is the output associated with the final configuration that comple
 
 ## Actions
 
-An action is a closed object:
+An action is an object with a `type` string. Action types are either core action types or profile-defined action types.
+
+### `core.assign`
+
+`core.assign` updates machine context when the action executes:
+
+```
+{
+  type: "core.assign"
+  assignments: Record<string, expression | JSON value>
+  params?: JSON value
+}
+```
+
+Each key in `assignments` is a context key to assign. Each value is either a static JSON value or an expression evaluated against the current `{ context, event }` data object.
+
+`assignments` is required. An empty `assignments` object is well-formed but has no effect.
+
+`params`, when present, is JSON-valued metadata for the assignment action. It does not define the assignment record.
+
+Transition `context` is shorthand for appending a `core.assign` action whose `assignments` field is the same assignment record.
+
+### Profile-Defined Actions
+
+Profile-defined actions use a generic open shape:
 
 ```
 {
   type: string
   params?: JSON value
+  [profileField: string]: JSON value
 }
 ```
 
-The core spec defines no built-in action names. The `type` selects behavior according to the active profile or implementation. `params` is opaque profile-defined data.
+For profile-defined actions, `type` selects behavior according to the active profile or implementation. Profiles define the meaning of `params` and any additional JSON-valued fields.
 
 ## Guards
 
@@ -267,10 +294,13 @@ A named guard is a closed object:
 {
   type: string
   params?: JSON value
+  [profileField: string]: JSON value
 }
 ```
 
-The core spec defines no built-in named guard names. Profiles MAY define semantics for named guard `type` values and their `params`.
+Named guard objects are open to profile-defined JSON-valued fields.
+
+The core spec defines no built-in named guard names. Profiles MAY define semantics for named guard `type` values, `params`, and any additional JSON-valued fields.
 
 ## Invoke
 
@@ -288,6 +318,8 @@ An invoke configuration is a closed object that describes an actor spawned while
 | `heartbeat` | `string` | No | ISO 8601 duration for heartbeat interval. |
 | `retry` | `RetryPolicy` | No | Retry policy for failed invocations. |
 | `meta` | `Record<string, JSON value>` | No | Semantically opaque metadata. |
+
+Invoke objects MAY also contain profile-defined JSON-valued fields.
 
 ### Retry Policy
 
@@ -332,7 +364,8 @@ Expressions MAY appear in:
 - transition `context` values
 - invoke `input`
 - state `output`
-- profile-defined action or guard `params`
+- `core.assign` assignment values
+- profile-defined action fields or guard `params`
 
 A value is an expression if and only if it is a string matching `^{{[\s\S]*}}$`.
 
@@ -387,13 +420,14 @@ The following core objects are closed. Unknown properties are errors:
 - `Machine`
 - `State`
 - `TransitionObject`
-- `Action`
+- core action objects
 - named `Guard`
-- `Invoke`
 - `RetryPolicy`
 - `Schemas`
 
-Embedded JSON Schema documents are exempt from the closed-object rule and are governed by JSON Schema.
+Profile-defined action objects, named guard objects, and invoke objects are open
+to additional JSON-valued fields. Embedded JSON Schema documents are exempt from
+the closed-object rule and are governed by JSON Schema.
 
 ## Type Definitions
 
@@ -409,7 +443,7 @@ Transition = TransitionObject | TransitionObject[]
 
 TransitionObject = {
   target?: StateReference | StateReference[]
-  guard?: string | { type: string, params?: JSONValue }
+  guard?: string | { type: string, params?: JSONValue, [profileField: string]: JSONValue }
   context?: Record<string, string | JSONValue>
   actions?: Action[]
   reenter?: boolean
@@ -418,10 +452,19 @@ TransitionObject = {
   order?: number
 }
 
-Action = {
-  type: string
+CoreAssignAction = {
+  type: "core.assign"
+  assignments: Record<string, string | JSONValue>
   params?: JSONValue
 }
+
+ProfileAction = {
+  type: string
+  params?: JSONValue
+  [profileField: string]: JSONValue
+}
+
+Action = CoreAssignAction | ProfileAction
 
 Invoke = {
   src: string
@@ -434,6 +477,7 @@ Invoke = {
   heartbeat?: string
   retry?: { maxAttempts: number, interval?: number | string, backoff?: number }
   meta?: Record<string, JSONValue>
+  [profileField: string]: JSONValue
 }
 
 State = {

@@ -252,19 +252,60 @@
   "additionalProperties": false,
   "$defs": {
     "Action": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "core.assign"
+            },
+            "assignments": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "description": "An expression string delimited by {{ }}",
+                    "type": "string",
+                    "pattern": "^\\{\\{[\\s\\S]*\\}\\}$"
+                  },
+                  {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                ]
+              }
+            },
+            "params": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type",
+            "assignments"
+          ],
+          "additionalProperties": false
         },
-        "params": {
-          "$ref": "#/$defs/__schema0"
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
         }
-      },
-      "required": [
-        "type"
       ],
-      "additionalProperties": false,
       "id": "Action"
     },
     "__schema0": {
@@ -315,7 +356,7 @@
           ]
         },
         "context": {
-          "description": "Context assignments applied when this transition is taken. Appended as an assign action.",
+          "description": "Context assignments applied when this transition is taken. Appended as a core.assign action.",
           "type": "object",
           "propertyNames": {
             "type": "string"
@@ -375,7 +416,9 @@
           "required": [
             "type"
           ],
-          "additionalProperties": false
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
         },
         {
           "description": "An expression string delimited by {{ }}",
@@ -509,7 +552,9 @@
       "required": [
         "src"
       ],
-      "additionalProperties": false,
+      "additionalProperties": {
+        "$ref": "#/$defs/__schema0"
+      },
       "id": "Invoke"
     },
     "State": {

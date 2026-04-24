@@ -1,0 +1,70 @@
+{
+  "key": "event-driven-schedule",
+  "id": "examples.event-driven-schedule",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "schedule",
+  "states": {
+    "schedule": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.schedule",
+          "input": {
+            "on": {
+              "one": {
+                "with": {
+                  "type": "com.example.hospital.events.patients.heartbeat.low"
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "callNurse"
+          }
+        }
+      ]
+    },
+    "callNurse": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "post",
+              "endpoint": "https://hospital.example.com/api/v1/notify",
+              "body": {
+                "patientId": "{{ $workflow.input[0].data.patient.id }}",
+                "patientName": "{{ $workflow.input[0].data.patient.name }}",
+                "roomNumber": "{{ $workflow.input[0].data.patient.room.number }}",
+                "vitals": {
+                  "heartRate": "{{ $workflow.input[0].data.patient.vitals.bpm }}",
+                  "timestamp": "{{ $workflow.input[0].data.timestamp }}"
+                },
+                "message": "Alert: Patient's heartbeat is critically low. Immediate attention required."
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "schedule-event-driven.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "event-driven-schedule",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

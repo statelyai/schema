@@ -126,10 +126,15 @@ assert<Transitions>(42);
 assert<Transitions>(['a', 'b']);
 
 // ============================================================
-// Actions — well-typed, profile-defined by string type
+// Actions — core.assign plus profile-defined action types
 // ============================================================
 
-assert<AssignAction>({ type: 'xstate.assign', params: { x: 1, y: '{{ event.val }}' } });
+assert<AssignAction>({ type: 'core.assign', assignments: { x: 1, y: '{{ event.val }}' } });
+assert<AssignAction>({
+  type: 'core.assign',
+  assignments: { x: 1 },
+  params: { source: 'test' },
+});
 assert<RaiseAction>({ type: 'xstate.raise', params: { event: { type: 'DONE' } } });
 assert<SendToAction>({
   type: 'xstate.sendTo',
@@ -141,9 +146,14 @@ assert<EmitAction>({ type: 'xstate.emit', params: { event: { type: 'NOTIFY' } } 
 assert<CustomAction>({ type: 'myAction', params: { foo: 'bar' } });
 assert<CustomAction>({ type: 'myAction' });
 
-assert<AssignAction>({ type: 'xstate.assign' });
 assert<RaiseAction>({ type: 'xstate.raise', params: {} });
 assert<SendToAction>({ type: 'xstate.sendTo', params: { actorRef: 'a' } });
+
+// @ts-expect-error — core.assign requires assignments
+assert<AssignAction>({ type: 'core.assign' });
+
+// @ts-expect-error — assignActionSchema is the core assign schema
+assert<AssignAction>({ type: 'xstate.assign', assignments: { x: 1 } });
 
 // @ts-expect-error — action requires type
 assert<Action>({ params: { x: 1 } });
@@ -151,15 +161,14 @@ assert<Action>({ params: { x: 1 } });
 // @ts-expect-error — action params must be JSON values
 assert<Action>({ type: 'custom', params: () => undefined });
 
-// Action aliases are backward-compatible generic action schemas.
-assert<AssignAction>({ type: 'xstate.assign' });
-assert<AssignAction>({ type: 'other', params: { x: 1 } });
 assert<RaiseAction>({ type: 'other', params: { event: 'E' } });
+assert<RaiseAction>({ type: 'other', custom: { ok: true } });
 assert<SendToAction>({ type: 'other', params: { actorRef: 'a', event: 'E' } });
 assert<LogAction>({ type: 'other' });
 assert<EmitAction>({ type: 'other', params: { event: 'E' } });
 
 // Action union accepts all
+assert<Action>({ type: 'core.assign', assignments: { x: 1 } });
 assert<Action>({ type: 'xstate.assign', params: { x: 1 } });
 assert<Action>({ type: 'xstate.raise', params: { event: 'E' } });
 assert<Action>({ type: 'xstate.log' });
@@ -173,10 +182,15 @@ assert<Action>({ type: 'custom' });
 assert<Guard>('{{ context.ready }}');
 assert<Guard>({ type: 'isReady' });
 assert<Guard>({ type: 'isReady', params: { threshold: 5 } });
+assert<Guard>({ type: 'isReady', config: { strict: true } });
 assert<NamedGuard>({ type: 'isReady' });
+assert<NamedGuard>({ type: 'isReady', config: { strict: true } });
 
 // @ts-expect-error — named guard requires type
 assert<NamedGuard>({ params: { x: 1 } });
+
+// @ts-expect-error — named guard extra fields must be JSON values
+assert<NamedGuard>({ type: 'isReady', config: () => undefined });
 
 // Note: Guard accepts any string at type level — regex {{ }} is
 // enforced at runtime by Zod, not in the TS type.
@@ -191,6 +205,7 @@ assert<Invoke>({
   id: 'fetcher',
   src: 'fetchUser',
   input: '{{ context.userId }}',
+  profileData: { mode: 'fast' },
   onDone: { target: 'success' },
   onError: { target: 'failure' },
   onSnapshot: { target: 'updating' },
@@ -207,6 +222,9 @@ assert<Invoke>({ src: 123 });
 
 // @ts-expect-error — timeout must be string
 assert<Invoke>({ src: 'foo', timeout: 30 });
+
+// @ts-expect-error — invoke extra fields must be JSON values
+assert<Invoke>({ src: 'foo', custom: () => undefined });
 
 // ============================================================
 // Retry

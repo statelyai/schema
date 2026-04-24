@@ -1,0 +1,40 @@
+{
+  "key": "run-container",
+  "id": "test.run-container",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "runContainer",
+  "states": {
+    "runContainer": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.run",
+          "input": {
+            "container": {
+              "image": "hello-world"
+            },
+            "return": "code"
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "run-return-code.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "run-container",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

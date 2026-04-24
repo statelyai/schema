@@ -1,0 +1,69 @@
+{
+  "key": "try-catch-retry",
+  "id": "default.try-catch-retry",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "tryGetPet",
+  "states": {
+    "tryGetPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.try",
+          "input": {
+            "try": [
+              {
+                "getPet": {
+                  "call": "http",
+                  "with": {
+                    "method": "get",
+                    "endpoint": "https://petstore.swagger.io/v2/pet/{petId}"
+                  }
+                }
+              }
+            ],
+            "catch": {
+              "errors": {
+                "with": {
+                  "type": "https://serverlessworkflow.io/spec/1.0.0/errors/communication",
+                  "status": 503
+                }
+              },
+              "retry": {
+                "delay": {
+                  "seconds": 3
+                },
+                "backoff": {
+                  "exponential": {
+                  }
+                },
+                "limit": {
+                  "attempt": {
+                    "count": 5
+                  }
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "try-catch-retry-inline.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "default",
+        "name": "try-catch-retry",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

@@ -107,6 +107,14 @@ import machineJsonSchema from '@statelyai/schema/machine.json';
 
 See the full [Stately Machine Specification](./spec.md) for formal definitions, conformance requirements, and detailed semantics.
 
+Profile documents:
+- [XState profile](./profiles/xstate.md)
+- [Serverless Workflow profile](./profiles/serverlessworkflow.md)
+
+## Examples
+
+Converted Serverless Workflow examples are available in [`examples/serverlessworkflow`](./examples/serverlessworkflow). They use a Serverless Workflow profile URI and profile-specific invokes/actions while staying valid against the core machine schema.
+
 ### States
 
 <!-- state node properties aligned with spec.md and src/machineSchema.ts -->
@@ -174,7 +182,7 @@ A transition is an object or an array of objects (for branching):
 |---|---|---|
 | `target` | `string \| string[]` | Target state reference(s) |
 | `guard` | `expression \| NamedGuard` | Condition for taking transition |
-| `context` | `Record<string, expression \| JSON value>` | Context assignments (appended as `xstate.assign` by the XState converter) |
+| `context` | `Record<string, expression \| JSON value>` | Context assignments (equivalent to `core.assign`) |
 | `actions` | `Action[]` | Actions to execute |
 | `description` | `string` | Human-readable description |
 | `meta` | `Record<string, JSON value>` | Arbitrary metadata |
@@ -183,12 +191,17 @@ A transition is an object or an array of objects (for branching):
 
 ### Actions
 
-The core specification has no built-in actions. An action is `{ "type": string, "params"?: JSON value }`; profiles or converters define the semantics of action types.
-
-The XState converter recognizes `xstate.*` action types:
+The core specification defines `core.assign` for keyed context assignment:
 
 ```json
-{ "type": "xstate.assign", "params": { "count": "{{ context.count + 1 }}" } }
+{ "type": "core.assign", "assignments": { "count": "{{ context.count + 1 }}" } }
+```
+
+Other actions use `{ "type": string, "params"?: JSON value, ...profileFields }`; profiles or converters define their semantics and any additional JSON-valued fields.
+
+The XState converter also recognizes `xstate.*` action types:
+
+```json
 { "type": "xstate.raise", "params": { "event": { "type": "DONE" } } }
 { "type": "xstate.sendTo", "params": { "actorRef": "worker", "event": { "type": "PING" } } }
 { "type": "xstate.log", "params": { "message": "{{ context.status }}" } }
@@ -210,8 +223,10 @@ Expression guard:
 
 Named guard (resolved via `setup()`):
 ```json
-{ "guard": { "type": "isValid", "params": { "min": 5 } } }
+{ "guard": { "type": "isValid", "params": { "min": 5 }, "config": { "strict": true } } }
 ```
+
+Profile-defined named guards may also include additional JSON-valued fields.
 
 ### Invoke
 
@@ -226,6 +241,8 @@ Named guard (resolved via `setup()`):
 | `timeout` | `string` | ISO 8601 duration |
 | `heartbeat` | `string` | ISO 8601 duration |
 | `retry` | `{ maxAttempts, interval?, backoff? }` | Retry policy on error |
+
+Profile-defined invokes may also include additional JSON-valued fields.
 
 ### Delayed transitions (`after`)
 

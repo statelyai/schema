@@ -1,0 +1,74 @@
+{
+  "key": "http-query-headers-expressions",
+  "id": "examples.http-query-headers-expressions",
+  "version": "1.0.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "setQueryAndHeaders",
+  "states": {
+    "setQueryAndHeaders": {
+      "entry": [
+        {
+          "type": "core.assign",
+          "assignments": {
+            "query": {
+              "search": "{{ .searchQuery }}"
+            },
+            "headers": {
+              "Accept": "application/json"
+            }
+          }
+        }
+      ],
+      "always": {
+        "target": "searchStarWarsCharacters"
+      }
+    },
+    "searchStarWarsCharacters": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": "https://swapi.dev/api/people/",
+              "headers": "{{ .headers }}",
+              "query": "{{ .query }}"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-http-query-headers-expressions.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "http-query-headers-expressions",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "schemas": {
+    "input": {
+      "type": "object",
+      "required": [
+        "searchQuery"
+      ],
+      "properties": {
+        "searchQuery": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "key": "listen-to-any-while-foreach",
+  "id": "test.listen-to-any-while-foreach",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "listenToGossips",
+  "states": {
+    "listenToGossips": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.listen",
+          "input": {
+            "to": {
+              "any": [
+
+              ],
+              "until": "{{ false }}"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "listen-to-any-forever-foreach.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "listen-to-any-while-foreach",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

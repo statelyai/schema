@@ -1,0 +1,46 @@
+{
+  "key": "openapi-example",
+  "id": "test.openapi-example",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "findPet",
+  "states": {
+    "findPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "openapi",
+            "with": {
+              "document": {
+                "endpoint": "https://petstore.swagger.io/v2/swagger.json"
+              },
+              "operationId": "findPetsByStatus",
+              "parameters": {
+                "status": "available"
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-openapi.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "openapi-example",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "key": "listen-to-one",
+  "id": "test.listen-to-one",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "waitForStartup",
+  "states": {
+    "waitForStartup": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.listen",
+          "input": {
+            "to": {
+              "one": {
+                "with": {
+                  "type": "com.virtual-wf-powered-race.events.race.started.v1"
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "startup"
+          }
+        }
+      ]
+    },
+    "startup": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "post",
+              "endpoint": {
+                "uri": "https://virtual-wf-powered-race.com/api/v4/cars/{carId}/start"
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "listen-to-one.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "listen-to-one",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

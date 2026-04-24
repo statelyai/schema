@@ -1,0 +1,48 @@
+{
+  "key": "bearer-auth",
+  "id": "examples.bearer-auth",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getPet",
+  "states": {
+    "getPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": {
+                "uri": "https://petstore.swagger.io/v2/pet/{petId}",
+                "authentication": {
+                  "bearer": {
+                    "token": "{{ .token }}"
+                  }
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "authentication-bearer-uri-format.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "bearer-auth",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

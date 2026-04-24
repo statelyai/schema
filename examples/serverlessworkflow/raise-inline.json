@@ -1,0 +1,42 @@
+{
+  "key": "raise-not-implemented",
+  "id": "test.raise-not-implemented",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "notImplemented",
+  "states": {
+    "notImplemented": {
+      "entry": [
+        {
+          "type": "serverlessworkflow.raise",
+          "params": {
+            "error": {
+              "type": "https://serverlessworkflow.io/errors/not-implemented",
+              "status": 500,
+              "title": "Not Implemented",
+              "detail": "{{ \"The workflow '\\( $workflow.definition.document.name ):\\( $workflow.definition.document.version )' is a work in progress and cannot be run yet\" }}"
+            }
+          }
+        }
+      ],
+      "always": {
+        "target": "done"
+      }
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "raise-inline.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "raise-not-implemented",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

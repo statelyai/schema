@@ -1,0 +1,60 @@
+{
+  "key": "for-example",
+  "id": "test.for-example",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "checkup",
+  "states": {
+    "checkup": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.for",
+          "input": {
+            "for": {
+              "each": "pet",
+              "in": "{{ .pets }}",
+              "at": "index"
+            },
+            "do": [
+              {
+                "waitForCheckup": {
+                  "listen": {
+                    "to": {
+                      "one": {
+                        "with": {
+                          "type": "com.fake.petclinic.pets.checkup.completed.v2"
+                        }
+                      }
+                    }
+                  },
+                  "output": {
+                    "as": "{{ .pets + [{ \"id\": $pet.id }] }}"
+                  }
+                }
+              }
+            ],
+            "while": "{{ .vet != null }}"
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "for.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "for-example",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

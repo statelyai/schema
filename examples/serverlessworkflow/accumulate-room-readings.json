@@ -1,0 +1,126 @@
+{
+  "key": "accumulate-room-readings",
+  "id": "examples.accumulate-room-readings",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "consumeReading",
+  "states": {
+    "consumeReading": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.listen",
+          "input": {
+            "to": {
+              "all": [
+                {
+                  "with": {
+                    "source": "https://my.home.com/sensor",
+                    "type": "my.home.sensors.temperature"
+                  },
+                  "correlate": {
+                    "roomId": {
+                      "from": "{{ .roomid }}"
+                    }
+                  }
+                },
+                {
+                  "with": {
+                    "source": "https://my.home.com/sensor",
+                    "type": "my.home.sensors.humidity"
+                  },
+                  "correlate": {
+                    "roomId": {
+                      "from": "{{ .roomid }}"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "onDone": {
+            "target": "logReading",
+            "actions": [
+              {
+                "type": "serverlessworkflow.output",
+                "params": {
+                  "as": "{{ .data.reading }}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "logReading": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.for",
+          "input": {
+            "for": {
+              "each": "reading",
+              "in": "{{ .readings }}"
+            },
+            "do": [
+              {
+                "callOrderService": {
+                  "call": "openapi",
+                  "with": {
+                    "document": {
+                      "endpoint": "http://myorg.io/ordersservices.json"
+                    },
+                    "operationId": "logreading"
+                  }
+                }
+              }
+            ]
+          },
+          "onDone": {
+            "target": "generateReport"
+          }
+        }
+      ]
+    },
+    "generateReport": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "openapi",
+            "with": {
+              "document": {
+                "endpoint": "http://myorg.io/ordersservices.json"
+              },
+              "operationId": "produceReport"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    },
+    "timeout": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "accumulate-room-readings.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "accumulate-room-readings",
+        "version": "0.1.0"
+      }
+    }
+  },
+  "after": {
+    "PT1H": {
+      "target": "timeout"
+    }
+  }
+}

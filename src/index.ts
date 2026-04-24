@@ -6,6 +6,8 @@ export {
 } from './expressionSchema';
 export {
   actionSchema,
+  assignmentSchema,
+  coreAssignActionSchema,
   assignActionSchema,
   raiseActionSchema,
   sendToActionSchema,

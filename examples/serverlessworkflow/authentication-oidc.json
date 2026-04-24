@@ -1,0 +1,53 @@
+{
+  "key": "oidc-authentication",
+  "id": "examples.oidc-authentication",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getPet",
+  "states": {
+    "getPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": {
+                "uri": "https://petstore.swagger.io/v2/pet/{petId}",
+                "authentication": {
+                  "oidc": {
+                    "authority": "http://keycloak/realms/fake-authority",
+                    "grant": "client_credentials",
+                    "client": {
+                      "id": "workflow-runtime-id",
+                      "secret": "workflow-runtime-secret"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "authentication-oidc.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "oidc-authentication",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "key": "run-subflow",
+  "id": "test.run-subflow",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "registerCustomer",
+  "states": {
+    "registerCustomer": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.run",
+          "input": {
+            "workflow": {
+              "namespace": "test",
+              "name": "register-customer",
+              "version": "0.1.0",
+              "input": {
+                "customer": "{{ .user }}"
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "run-subflow.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "run-subflow",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

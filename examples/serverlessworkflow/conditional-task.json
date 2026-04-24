@@ -1,0 +1,73 @@
+{
+  "key": "conditional-task",
+  "id": "default.conditional-task",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "raiseErrorIfUnderage",
+  "states": {
+    "raiseErrorIfUnderage": {
+      "always": [
+        {
+          "target": "raiseErrorIfUnderage_execute",
+          "guard": "{{ .customer.age < 18 }}"
+        },
+        {
+          "target": "placeBet"
+        }
+      ]
+    },
+    "raiseErrorIfUnderage_execute": {
+      "entry": [
+        {
+          "type": "serverlessworkflow.raise",
+          "params": {
+            "error": {
+              "type": "https://superbet-casinos.com/customer/access-forbidden",
+              "status": 400,
+              "title": "Access Forbidden"
+            }
+          }
+        }
+      ],
+      "always": {
+        "target": "done"
+      }
+    },
+    "placeBet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "post",
+              "endpoint": "https://superbet-casinos.com/api/bet/on/football",
+              "body": {
+                "customer": "{{ .customer }}",
+                "bet": "{{ .bet }}"
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "conditional-task.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "default",
+        "name": "conditional-task",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

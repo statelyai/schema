@@ -1,0 +1,47 @@
+{
+  "key": "run-script-with-stdin-and-arguments",
+  "id": "examples.run-script-with-stdin-and-arguments",
+  "version": "1.0.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "runScript",
+  "states": {
+    "runScript": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.run",
+          "input": {
+            "script": {
+              "language": "javascript",
+              "stdin": "Hello Workflow",
+              "environment": {
+                "foo": "bar"
+              },
+              "arguments": [
+                "hello"
+              ],
+              "code": "// Reading Input from STDIN\nimport { readFileSync } from 'node:fs';\nconst stdin = readFileSync(process.stdin.fd, 'utf8');\nconsole.log('stdin > ', stdin) // Output: stdin > Hello Workflow\n\n// Reading from argv\nconst [_, __, arg] = process.argv;\nconsole.log('arg > ', arg) // Output: arg > hello\n\n// Reading from env\nconst foo = process.env.foo;\nconsole.log('env > ', foo) // Output: env > bar\n"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "run-script-with-stdin-and-arguments.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "run-script-with-stdin-and-arguments",
+        "version": "1.0.0"
+      }
+    }
+  }
+}

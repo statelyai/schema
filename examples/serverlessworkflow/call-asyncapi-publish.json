@@ -1,0 +1,56 @@
+{
+  "key": "bearer-auth",
+  "id": "examples.bearer-auth",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "findPet",
+  "states": {
+    "findPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "asyncapi",
+            "with": {
+              "document": {
+                "endpoint": "https://fake.com/docs/asyncapi.json"
+              },
+              "operation": "findPetsByStatus",
+              "server": {
+                "name": "staging"
+              },
+              "message": {
+                "payload": {
+                  "petId": "{{ .pet.id }}"
+                }
+              },
+              "authentication": {
+                "bearer": {
+                  "token": "{{ .token }}"
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-asyncapi-publish.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "bearer-auth",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

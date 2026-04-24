@@ -377,6 +377,28 @@ describe('toXStateConfig', () => {
     assert.strictEqual(inv.onError.target, 'failure');
   });
 
+  test('preserves extra invoke fields in config output', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      states: {
+        loading: {
+          invoke: [
+            {
+              src: 'fetchData',
+              custom: { mode: 'fast' },
+              onDone: { target: 'success' },
+            },
+          ],
+        },
+        success: {},
+      },
+    };
+    const config = toXStateConfig(spec, noop);
+    assert.deepStrictEqual(config.states.loading.invoke[0].custom, {
+      mode: 'fast',
+    });
+  });
+
   test('rejects unsupported invoke timeout/heartbeat/retry semantics', () => {
     const spec: StateMachine = {
       key: 'machine',
@@ -696,6 +718,33 @@ describe('jsonata converter', () => {
     assert.deepStrictEqual(config.context, { count: 0 });
     const actions = config.states.idle.on.INC.actions;
     assert.ok(actions.length === 1);
+  });
+
+  test('core.assign updates context via transition()', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'idle',
+      context: { count: 0 },
+      states: {
+        idle: {
+          on: {
+            INC: {
+              target: 'idle',
+              actions: [
+                {
+                  type: 'core.assign',
+                  assignments: { count: 1 },
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+    const machine = convertSpecToMachine(spec, { evaluate: () => undefined });
+    const [s0] = initialTransition(machine);
+    const [s1] = transition(machine, s0, { type: 'INC' });
+    assert.strictEqual(s1.context.count, 1);
   });
 
   test('convertSpecToMachine transitions work', () => {

@@ -1,0 +1,43 @@
+{
+  "key": "call-custom-function-cataloged",
+  "id": "samples.call-custom-function-cataloged",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "log",
+  "states": {
+    "log": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "https://raw.githubusercontent.com/serverlessworkflow/catalog/main/functions/log/1.0.0/function.yaml",
+            "with": {
+              "message": "Hello, world!",
+              "level": "information",
+              "timestamp": true,
+              "format": "{TIMESTAMP} [{LEVEL}] ({CONTEXT}): {MESSAGE}"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-custom-function-cataloged.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "samples",
+        "name": "call-custom-function-cataloged",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

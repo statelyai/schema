@@ -1,0 +1,51 @@
+{
+  "key": "grpc-example",
+  "id": "test.grpc-example",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "greet",
+  "states": {
+    "greet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "grpc",
+            "with": {
+              "proto": {
+                "endpoint": "file://app/greet.proto"
+              },
+              "service": {
+                "name": "GreeterApi.Greeter",
+                "host": "localhost",
+                "port": 5011
+              },
+              "method": "SayHello",
+              "arguments": {
+                "name": "{{ .user.preferredDisplayName }}"
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-grpc.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "grpc-example",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

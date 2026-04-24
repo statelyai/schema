@@ -1,0 +1,71 @@
+{
+  "key": "sample-workflow",
+  "id": "test.sample-workflow",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "callHttp",
+  "states": {
+    "callHttp": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": {
+                "uri": "https://fake.com/sample"
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "mock-service-extension.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "sample-workflow",
+        "version": "0.1.0"
+      },
+      "use": {
+        "extensions": [
+          {
+            "mockService": {
+              "extend": "call",
+              "when": "($task.with.endpoint != null and ($task.with.endpoint | startswith(\"https://mocked.service.com\"))) or ($task.with.endpoint.uri != null and ($task.with.endpoint.uri | startswith(\"https://mocked.service.com\")))",
+              "before": [
+                {
+                  "mockResponse": {
+                    "set": {
+                      "statusCode": 200,
+                      "headers": {
+                        "Content-Type": "application/json"
+                      },
+                      "content": {
+                        "foo": {
+                          "bar": "baz"
+                        }
+                      }
+                    },
+                    "then": "exit"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

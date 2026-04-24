@@ -1,0 +1,58 @@
+{
+  "key": "http-query-params",
+  "id": "examples.http-query-params",
+  "version": "1.0.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "searchStarWarsCharacters",
+  "states": {
+    "searchStarWarsCharacters": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": "https://swapi.dev/api/people/",
+              "query": {
+                "search": "{{ .searchQuery }}"
+              },
+              "redirect": true
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-http-redirect.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "http-query-params",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "schemas": {
+    "input": {
+      "type": "object",
+      "required": [
+        "searchQuery"
+      ],
+      "properties": {
+        "searchQuery": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

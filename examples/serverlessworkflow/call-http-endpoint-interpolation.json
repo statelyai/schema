@@ -1,0 +1,44 @@
+{
+  "key": "call-http-shorthand-endpoint",
+  "id": "examples.call-http-shorthand-endpoint",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getPet",
+  "states": {
+    "getPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "headers": {
+                "content-type": "application/json"
+              },
+              "method": "get",
+              "endpoint": "{{ \"https://petstore.swagger.io/v2/pet/\\(.petId)\" }}"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-http-endpoint-interpolation.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "call-http-shorthand-endpoint",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

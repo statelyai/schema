@@ -1,0 +1,52 @@
+{
+  "key": "listen-to-all",
+  "id": "test.listen-to-all",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "callDoctor",
+  "states": {
+    "callDoctor": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.listen",
+          "input": {
+            "to": {
+              "all": [
+                {
+                  "with": {
+                    "type": "com.fake-hospital.vitals.measurements.temperature",
+                    "data": "{{ .temperature > 38 }}"
+                  }
+                },
+                {
+                  "with": {
+                    "type": "com.fake-hospital.vitals.measurements.bpm",
+                    "data": "{{ .bpm < 60 or .bpm > 100 }}"
+                  }
+                }
+              ]
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "listen-to-all.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "listen-to-all",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

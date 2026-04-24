@@ -1,0 +1,66 @@
+{
+  "key": "call-custom-function-inline",
+  "id": "samples.call-custom-function-inline",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getPet",
+  "states": {
+    "getPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "getPetById",
+            "with": {
+              "petId": 69
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-custom-function-inline.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "samples",
+        "name": "call-custom-function-inline",
+        "version": "0.1.0"
+      },
+      "use": {
+        "functions": {
+          "getPetById": {
+            "input": {
+              "schema": {
+                "document": {
+                  "type": "object",
+                  "properties": {
+                    "petId": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "petId"
+                  ]
+                }
+              }
+            },
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": "https://petstore.swagger.io/v2/pet/{petId}"
+            }
+          }
+        }
+      }
+    }
+  }
+}

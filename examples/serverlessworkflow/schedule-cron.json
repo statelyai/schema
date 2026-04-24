@@ -1,0 +1,54 @@
+{
+  "key": "cron-schedule",
+  "id": "examples.cron-schedule",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "schedule",
+  "states": {
+    "schedule": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.schedule",
+          "input": {
+            "cron": "0 0 * * *"
+          },
+          "onDone": {
+            "target": "backup"
+          }
+        }
+      ]
+    },
+    "backup": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "post",
+              "endpoint": "https://example.com/api/v1/backup/start"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "schedule-cron.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "cron-schedule",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

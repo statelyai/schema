@@ -1,0 +1,35 @@
+{
+  "key": "wait-duration-8601",
+  "id": "test.wait-duration-8601",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "wait30Seconds",
+  "states": {
+    "wait30Seconds": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.wait",
+          "input": "PT30S",
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "wait-duration-iso8601.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "wait-duration-8601",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "key": "try-catch",
+  "id": "default.try-catch",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "tryGetPet",
+  "states": {
+    "tryGetPet": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.try",
+          "input": {
+            "try": [
+              {
+                "getPet": {
+                  "call": "http",
+                  "with": {
+                    "method": "get",
+                    "endpoint": "https://petstore.swagger.io/v2/pet/{petId}"
+                  }
+                }
+              }
+            ],
+            "catch": {
+              "errors": {
+                "with": {
+                  "type": "https://serverlessworkflow.io/spec/1.0.0/errors/communication",
+                  "status": 404
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "try-catch.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "default",
+        "name": "try-catch",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

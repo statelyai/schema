@@ -1,0 +1,58 @@
+{
+  "key": "run-container-stdin-and-arguments",
+  "id": "test.run-container-stdin-and-arguments",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "setInput",
+  "states": {
+    "setInput": {
+      "entry": [
+        {
+          "type": "core.assign",
+          "assignments": {
+            "message": "Hello World"
+          }
+        }
+      ],
+      "always": {
+        "target": "runContainer"
+      }
+    },
+    "runContainer": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.run",
+          "input": {
+            "container": {
+              "image": "alpine",
+              "command": "input=$(cat)\necho \"STDIN was: $input\"\necho \"ARGS are $1 $2\"\n",
+              "stdin": "{{ . }}",
+              "arguments": [
+                "Foo",
+                "Bar"
+              ]
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "run-container-stdin-and-arguments.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "run-container-stdin-and-arguments",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

@@ -218,6 +218,46 @@ describe('machineSchema', () => {
     });
   });
 
+  test('profile guards may define extra JSON fields', () => {
+    parseMachine({
+      initial: 'active',
+      states: {
+        active: {
+          on: {
+            NEXT: {
+              target: 'done',
+              guard: {
+                type: 'isReady',
+                params: { threshold: 5 },
+                config: { strict: true },
+              },
+            },
+          },
+        },
+        done: { type: 'final' },
+      },
+    });
+    assert.throws(() =>
+      parseMachine({
+        initial: 'active',
+        states: {
+          active: {
+            on: {
+              NEXT: {
+                target: 'done',
+                guard: {
+                  type: 'isReady',
+                  config: () => undefined,
+                },
+              },
+            },
+          },
+          done: { type: 'final' },
+        },
+      })
+    );
+  });
+
   // --- Transition object ---
 
   test('transition object', () => {
@@ -398,6 +438,81 @@ describe('machineSchema', () => {
   });
 
   // --- Built-in actions ---
+
+  test('core.assign action', () => {
+    parseMachine({
+      initial: 'a',
+      states: {
+        a: {
+          entry: [
+            {
+              type: 'core.assign',
+              assignments: {
+                count: '{{ $context.count + 1 }}',
+                status: 'ready',
+              },
+              params: { source: 'entry' },
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  test('core.assign requires keyed assignments', () => {
+    assert.throws(() =>
+      parseMachine({
+        initial: 'a',
+        states: {
+          a: {
+            entry: [{ type: 'core.assign' }],
+          },
+        },
+      })
+    );
+    assert.throws(() =>
+      parseMachine({
+        initial: 'a',
+        states: {
+          a: {
+            entry: [{ type: 'core.assign', assignments: [] }],
+          },
+        },
+      })
+    );
+  });
+
+  test('profile actions may define extra JSON fields', () => {
+    parseMachine({
+      initial: 'a',
+      states: {
+        a: {
+          entry: [
+            {
+              type: 'profile.action',
+              params: { value: 1 },
+              custom: { value: true },
+            },
+          ],
+        },
+      },
+    });
+    assert.throws(() =>
+      parseMachine({
+        initial: 'a',
+        states: {
+          a: {
+            entry: [
+              {
+                type: 'profile.action',
+                custom: () => undefined,
+              },
+            ],
+          },
+        },
+      })
+    );
+  });
 
   test('raise action', () => {
     parseMachine({
@@ -617,6 +732,39 @@ describe('machineSchema', () => {
         success: { type: 'final' },
       },
     });
+  });
+
+  test('profile invokes may define extra JSON fields', () => {
+    parseMachine({
+      initial: 'loading',
+      states: {
+        loading: {
+          invoke: [
+            {
+              src: 'fetchData',
+              profileData: { mode: 'fast' },
+              onDone: { target: 'done' },
+            },
+          ],
+        },
+        done: { type: 'final' },
+      },
+    });
+    assert.throws(() =>
+      parseMachine({
+        initial: 'loading',
+        states: {
+          loading: {
+            invoke: [
+              {
+                src: 'fetchData',
+                bad: () => undefined,
+              },
+            ],
+          },
+        },
+      })
+    );
   });
 
   // --- After with ISO 8601 ---

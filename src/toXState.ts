@@ -107,10 +107,13 @@ function assertSupportedInvoke(inv: any) {
 
 function convertAction(action: any, evaluate: ExpressionEvaluator): any {
   switch (action.type) {
+    case 'core.assign':
     case 'xstate.assign': {
       const assignments: Record<string, any> = {};
+      const assignmentSource =
+        action.type === 'core.assign' ? action.assignments : action.params;
       for (const [key, value] of Object.entries(
-        action.params as Record<string, any>
+        (assignmentSource ?? {}) as Record<string, any>
       )) {
         if (isExpression(value)) {
           const expr = stripDelimiters(value);
@@ -185,7 +188,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
     }
     default:
       // Custom action — pass through as-is (requires setup() to resolve)
-      return { type: action.type, params: action.params };
+      return { ...action };
   }
 }
 
@@ -213,7 +216,7 @@ function convertTransition(t: any, evaluate: ExpressionEvaluator): any {
   // Append implicit assign from transition `context`
   if (t.context) {
     actions.push(
-      convertAction({ type: 'xstate.assign', params: t.context }, evaluate)
+      convertAction({ type: 'core.assign', assignments: t.context }, evaluate)
     );
   }
 
@@ -275,7 +278,7 @@ function convertState(state: any, evaluate: ExpressionEvaluator): any {
   if (state.invoke) {
     result.invoke = state.invoke.map((inv: any) => {
       assertSupportedInvoke(inv);
-      const r: any = { src: inv.src };
+      const r: any = { ...inv, src: inv.src };
       if (inv.id) r.id = inv.id;
       if (inv.input != null) {
         if (isExpression(inv.input)) {

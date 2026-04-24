@@ -1,0 +1,85 @@
+{
+  "key": "sample-workflow",
+  "id": "test.sample-workflow",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "processOrder",
+  "states": {
+    "processOrder": {
+      "always": [
+        {
+          "target": "processElectronicOrder",
+          "guard": "{{ .orderType == \"electronic\" }}",
+          "description": "case1"
+        },
+        {
+          "target": "processPhysicalOrder",
+          "guard": "{{ .orderType == \"physical\" }}",
+          "description": "case2"
+        },
+        {
+          "target": "handleUnknownOrderType",
+          "description": "default"
+        }
+      ]
+    },
+    "processElectronicOrder": {
+      "entry": [
+        {
+          "type": "core.assign",
+          "assignments": {
+            "validate": true,
+            "status": "fulfilled"
+          }
+        }
+      ],
+      "always": {
+        "target": "done"
+      }
+    },
+    "processPhysicalOrder": {
+      "entry": [
+        {
+          "type": "core.assign",
+          "assignments": {
+            "inventory": "clear",
+            "items": 1,
+            "address": "Elmer St"
+          }
+        }
+      ],
+      "always": {
+        "target": "done"
+      }
+    },
+    "handleUnknownOrderType": {
+      "entry": [
+        {
+          "type": "core.assign",
+          "assignments": {
+            "log": "warn",
+            "message": "something's wrong"
+          }
+        }
+      ],
+      "always": {
+        "target": "done"
+      }
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "switch-then-string.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "sample-workflow",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

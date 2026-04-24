@@ -61,16 +61,43 @@ export const eventDescriptorSchema = z.string().refine(isValidEventDescriptor, {
 
 // --- Actions ---
 
-export const actionSchema = z
+export const assignmentSchema = z.record(
+  z.string(),
+  expressionOr(jsonValueSchema)
+);
+
+export const coreAssignActionSchema = z
   .object({
-    type: z.string(),
+    type: z.literal('core.assign'),
+    assignments: assignmentSchema,
     params: jsonValueSchema.optional(),
   })
   .strict();
 
+const profileActionSchema = z
+  .object({
+    type: z.string(),
+    params: jsonValueSchema.optional(),
+  })
+  .catchall(jsonValueSchema)
+  .superRefine((action, ctx) => {
+    if (action.type === 'core.assign') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['type'],
+        message: 'core.assign must satisfy the core assign action schema',
+      });
+    }
+  });
+
+export const actionSchema = z.union([
+  coreAssignActionSchema,
+  profileActionSchema,
+]);
+
 // Backward-compatible aliases for consumers that imported the previous
-// profile-specific schemas. The core spec now treats all actions uniformly.
-export const assignActionSchema = actionSchema;
+// profile-specific schemas.
+export const assignActionSchema = coreAssignActionSchema;
 export const raiseActionSchema = actionSchema;
 export const sendToActionSchema = actionSchema;
 export const logActionSchema = actionSchema;
@@ -82,7 +109,7 @@ export const customActionSchema = actionSchema;
 export const namedGuardSchema = z.object({
   type: z.string(),
   params: jsonValueSchema.optional(),
-}).strict();
+}).catchall(jsonValueSchema);
 
 export const guardSchema = z.union([namedGuardSchema, expressionSchema]);
 
@@ -98,7 +125,7 @@ export const transitionObjectSchema = z.object({
     .record(z.string(), expressionOr(jsonValueSchema))
     .optional()
     .describe(
-      'Context assignments applied when this transition is taken. Appended as an assign action.'
+      'Context assignments applied when this transition is taken. Appended as a core.assign action.'
     ),
   actions: z.array(actionSchema).optional(),
   description: z.string().optional(),
@@ -157,7 +184,7 @@ export const invokeSchema = z.object({
   retry: retrySchema
     .optional()
     .describe('Retry policy for the invoked actor on error'),
-}).strict();
+}).catchall(jsonValueSchema);
 
 // --- State ---
 

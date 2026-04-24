@@ -1,0 +1,57 @@
+{
+  "key": "run-shell-with-stdin-and-arguments",
+  "id": "examples.run-shell-with-stdin-and-arguments",
+  "version": "1.0.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "setInput",
+  "states": {
+    "setInput": {
+      "entry": [
+        {
+          "type": "core.assign",
+          "assignments": {
+            "message": "Hello World"
+          }
+        }
+      ],
+      "always": {
+        "target": "runShell"
+      }
+    },
+    "runShell": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.run",
+          "input": {
+            "shell": {
+              "stdin": "{{ . }}",
+              "command": "input=$(cat)\necho \"STDIN was: $input\"\necho \"ARGS are $1 $2\"\n",
+              "arguments": [
+                "Foo",
+                "Bar"
+              ]
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "run-shell-stdin-and-arguments.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "run-shell-with-stdin-and-arguments",
+        "version": "1.0.0"
+      }
+    }
+  }
+}

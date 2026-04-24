@@ -1,0 +1,52 @@
+{
+  "key": "listen-to-any-filter",
+  "id": "test.listen-to-any-filter",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "callDoctor",
+  "states": {
+    "callDoctor": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.listen",
+          "input": {
+            "to": {
+              "any": [
+                {
+                  "with": {
+                    "type": "com.fake-hospital.vitals.measurements.temperature",
+                    "data": "{{ .temperature > 38 }}"
+                  }
+                },
+                {
+                  "with": {
+                    "type": "com.fake-hospital.vitals.measurements.bpm",
+                    "data": "{{ .bpm < 60 or .bpm > 100 }}"
+                  }
+                }
+              ]
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "listen-to-any-filter.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "test",
+        "name": "listen-to-any-filter",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

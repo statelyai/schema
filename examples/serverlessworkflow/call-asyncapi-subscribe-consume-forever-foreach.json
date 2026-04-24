@@ -1,0 +1,69 @@
+{
+  "key": "bearer-auth",
+  "id": "examples.bearer-auth",
+  "version": "0.1.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getNotifications",
+  "states": {
+    "getNotifications": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "asyncapi",
+            "with": {
+              "document": {
+                "endpoint": "https://fake.com/docs/asyncapi.json"
+              },
+              "operation": "getNotifications",
+              "subscription": {
+                "filter": "{{ .correlationId == $context.userId and .payload.from.firstName == $context.contact.firstName and .payload.from.lastName == $context.contact.lastName }}",
+                "consume": {
+                  "while": "{{ true }}"
+                },
+                "foreach": {
+                  "item": "message",
+                  "do": [
+                    {
+                      "publishCloudEvent": {
+                        "emit": {
+                          "event": {
+                            "with": {
+                              "source": "https://serverlessworkflow.io/samples",
+                              "type": "io.serverlessworkflow.samples.asyncapi.message.consumed.v1",
+                              "data": {
+                                "message": "{{ $message }}"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "call-asyncapi-subscribe-consume-forever-foreach.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "bearer-auth",
+        "version": "0.1.0"
+      }
+    }
+  }
+}

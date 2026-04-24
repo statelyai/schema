@@ -1,0 +1,84 @@
+{
+  "key": "star-wars-homeplanet",
+  "id": "examples.star-wars-homeplanet",
+  "version": "1.0.0",
+  "profile": "https://serverlessworkflow.io/specification/1.0.3",
+  "queryLanguage": "jq",
+  "initial": "getStarWarsCharacter",
+  "states": {
+    "getStarWarsCharacter": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": "https://swapi.dev/api/people/{id}",
+              "output": "response"
+            }
+          },
+          "onDone": {
+            "target": "getStarWarsHomeworld",
+            "actions": [
+              {
+                "type": "serverlessworkflow.export",
+                "params": {
+                  "as": {
+                    "homeworld": "{{ .content.homeworld }}"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "getStarWarsHomeworld": {
+      "invoke": [
+        {
+          "src": "serverlessworkflow.call",
+          "input": {
+            "call": "http",
+            "with": {
+              "method": "get",
+              "endpoint": "{{ $context.homeworld }}"
+            }
+          },
+          "onDone": {
+            "target": "done"
+          }
+        }
+      ]
+    },
+    "done": {
+      "type": "final"
+    }
+  },
+  "meta": {
+    "serverlessworkflow": {
+      "source": "star-wars-homeworld.yaml",
+      "document": {
+        "dsl": "1.0.3",
+        "namespace": "examples",
+        "name": "star-wars-homeplanet",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "schemas": {
+    "input": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "The id of the star wars character to get",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}
