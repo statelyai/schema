@@ -5,6 +5,10 @@ export {
   jsonSchemaPropertySchema,
 } from './expressionSchema';
 export {
+  registeredProfiles,
+  isRegisteredProfileName,
+} from './profiles';
+export {
   actionSchema,
   assignmentSchema,
   coreAssignActionSchema,

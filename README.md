@@ -111,6 +111,8 @@ Profile documents:
 - [XState profile](./profiles/xstate.md)
 - [Serverless Workflow profile](./profiles/serverlessworkflow.md)
 
+Registered short profile names exported by the package currently include `xstate`.
+
 ## Examples
 
 Converted Serverless Workflow examples are available in [`examples/serverlessworkflow`](./examples/serverlessworkflow). They use a Serverless Workflow profile URI and profile-specific invokes/actions while staying valid against the core machine schema.

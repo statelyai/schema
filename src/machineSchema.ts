@@ -5,6 +5,7 @@ import {
   jsonSchemaPropertySchema,
   queryLanguageSchema,
 } from './expressionSchema';
+import { isRegisteredProfileName } from './profiles';
 
 type JsonValue =
   | null
@@ -25,8 +26,6 @@ export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   ])
 );
 
-const registeredProfiles = new Set(['xstate']);
-
 function isUri(value: string): boolean {
   try {
     new URL(value);
@@ -38,7 +37,7 @@ function isUri(value: string): boolean {
 
 export const profileSchema = z
   .string()
-  .refine((value) => registeredProfiles.has(value) || isUri(value), {
+  .refine((value) => isRegisteredProfileName(value) || isUri(value), {
     message: 'Profile must be a registered profile name or URI',
   });
 
