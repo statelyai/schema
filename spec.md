@@ -100,9 +100,8 @@ Unknown short profile names are errors. Unknown URI profile identifiers are well
 
 | Short name | Canonical URI | Reference |
 |---|---|---|
-| `xstate` | Deferred | [XState profile](./profiles/xstate.md) |
-
-This repository also includes an informative [Serverless Workflow profile](./profiles/serverlessworkflow.md) for URI-based profile identifiers used by the converted examples.
+| `xstate` | `https://stately.ai/specifications/xstate` | [XState profile](./profiles/xstate.md) |
+| `serverlessworkflow` | `https://serverlessworkflow.io/specification/1.0.3` | [Serverless Workflow profile](./profiles/serverlessworkflow.md) |
 
 ## States
 

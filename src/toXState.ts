@@ -198,8 +198,8 @@ function convertGuard(guard: any, evaluate: ExpressionEvaluator): any {
     return ({ context, event }: any) =>
       Boolean(evaluateSync(evaluate, expr, { context, event }));
   }
-  // Named guard
-  return { type: guard.type, params: guard.params };
+  // Named guard — preserve profile-specific fields
+  return { ...guard };
 }
 
 function convertTransition(t: any, evaluate: ExpressionEvaluator): any {

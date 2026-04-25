@@ -8,6 +8,12 @@ export const registeredProfiles: RegisteredProfile[] = [
   {
     shortName: 'xstate',
     docsPath: './profiles/xstate.md',
+    canonicalUri: 'https://stately.ai/specifications/xstate',
+  },
+  {
+    shortName: 'serverlessworkflow',
+    docsPath: './profiles/serverlessworkflow.md',
+    canonicalUri: 'https://serverlessworkflow.io/specification/1.0.3',
   },
 ];
 

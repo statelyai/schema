@@ -350,6 +350,35 @@ describe('toXStateConfig', () => {
     assert.deepStrictEqual(guard, { type: 'isReady', params: { min: 5 } });
   });
 
+  test('preserves extra named guard fields', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      states: {
+        idle: {
+          on: {
+            GO: {
+              target: 'active',
+              guard: {
+                type: 'isReady',
+                params: { min: 5 },
+                config: { strict: true },
+              },
+            },
+          },
+        },
+        active: {},
+      },
+    };
+    const config = toXStateConfig(spec, noop);
+    const guard = config.states.idle.on.GO.guard;
+    assert.deepStrictEqual(guard, {
+      type: 'isReady',
+      params: { min: 5 },
+      config: { strict: true },
+    });
+  });
+
   test('converts invoke', () => {
     const spec: StateMachine = {
       key: 'machine',

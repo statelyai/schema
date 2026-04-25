@@ -111,7 +111,8 @@ Profile documents:
 - [XState profile](./profiles/xstate.md)
 - [Serverless Workflow profile](./profiles/serverlessworkflow.md)
 
-Registered short profile names exported by the package currently include `xstate`.
+Registered short profile names exported by the package currently include `xstate`
+and `serverlessworkflow`.
 
 ## Examples
 
