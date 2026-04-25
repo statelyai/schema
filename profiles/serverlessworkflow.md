@@ -5,7 +5,8 @@ examples in this repository.
 
 ## Identifier
 
-- Example URI form: `https://serverlessworkflow.io/specification/1.0.3`
+- Short name: `serverlessworkflow`
+- Canonical URI: `https://serverlessworkflow.io/specification/1.0.3`
 
 This document is informative for the current repository. It describes how the
 example translations use the Stately Machine Specification; it does not claim to

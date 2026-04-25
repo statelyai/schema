@@ -5,7 +5,7 @@ This document defines the `xstate` profile for the Stately Machine Specification
 ## Identifier
 
 - Short name: `xstate`
-- Canonical URI: deferred
+- Canonical URI: `https://stately.ai/specifications/xstate`
 
 ## Purpose
 
