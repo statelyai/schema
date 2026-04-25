@@ -2,11 +2,11 @@
 
 **Version:** 0.1.0 (Draft)
 
-This document defines a JSON-based format for describing state machines, statecharts, and workflows. The core format is runtime-agnostic: it defines document structure, references, transitions, expressions, schemas, a small set of core action semantics, and extension points, but it does not define built-in named guards or actor implementations.
+This document defines a JSON-based format for describing state machines, statecharts, and workflows. The core format is runtime-agnostic: it defines document structure, references, transitions, expressions, schemas, optional trigger metadata, a small set of core action semantics, and extension points, but it does not define built-in named guards or actor implementations.
 
 ## Overview
 
-A machine document is a JSON object. The root object is a **machine**, which is a state node with additional machine-level fields such as `key`, `version`, `profile`, `queryLanguage`, `context`, and `schemas`.
+A machine document is a JSON object. The root object is a **machine**, which is a state node with additional machine-level fields such as `key`, `version`, `profile`, `queryLanguage`, `context`, `triggers`, and `schemas`.
 
 Machines are hierarchical. States can contain child states, transitions move between states, actions describe side effects, guards conditionally select transitions, invokes describe child actors, and expressions describe runtime-computed values.
 
@@ -71,6 +71,7 @@ A machine is a state node with additional machine-level fields.
 | `profile` | `string` | No | Execution profile short name or URI. |
 | `queryLanguage` | `string` | No | Expression language. Standard values are `jsonata`, `jmespath`, and `jsonpath`; implementations MAY support additional values. |
 | `context` | `Record<string, JSON value>` | No | Initial context. |
+| `triggers` | `Trigger[]` | No | Optional machine-level trigger metadata. The core spec preserves this field but does not interpret trigger semantics. |
 | `schemas` | `Schemas` | No | JSON Schema declarations for input, context, events, and output. |
 
 The root machine is also a state node. Unless otherwise stated, state-node fields such as `id`, `description`, `type`, `initial`, `states`, `on`, `after`, `always`, `onDone`, `entry`, `exit`, `invoke`, `tags`, `output`, and `meta` MAY appear on the root.
@@ -499,12 +500,18 @@ State = {
   meta?: Record<string, JSONValue>
 }
 
+Trigger = {
+  type: string
+  ...JSONValue
+}
+
 Machine = State & {
   key: string
   version?: string
   profile?: string
   queryLanguage?: string
   context?: Record<string, JSONValue>
+  triggers?: Trigger[]
   schemas?: {
     input?: JSONSchema
     context?: Record<string, JSONSchema>

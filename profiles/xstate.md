@@ -15,6 +15,10 @@ and execution by [XState](https://stately.ai/docs/xstate).
 The core specification still applies. This profile only defines meanings for
 profile-scoped action types and invoke sources.
 
+The root-level `triggers` field is also preserved when converting a machine to an
+XState config object. XState-oriented runtimes MAY use those trigger objects as
+metadata, but this profile does not define their execution semantics.
+
 ## Actions
 
 The profile defines these action types:

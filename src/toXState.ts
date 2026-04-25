@@ -329,6 +329,7 @@ export function toXStateConfig(
 ) {
   const config = convertState(spec, evaluate);
   if (spec.context) config.context = spec.context;
+  if (spec.triggers) config.triggers = spec.triggers;
   if (spec.version) config.version = spec.version;
   return config;
 }

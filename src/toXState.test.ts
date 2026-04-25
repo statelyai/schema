@@ -113,6 +113,20 @@ describe('toXStateConfig', () => {
     assert.deepStrictEqual(config.context, { count: 0, name: 'test' });
   });
 
+  test('preserves root-level triggers metadata', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      triggers: [
+        { type: 'webhook', path: '/api/orders' },
+        { type: 'cron', schedule: '0 9 * * *' },
+      ],
+      states: {},
+    };
+    const config = toXStateConfig(spec, noop);
+    assert.deepStrictEqual(config.triggers, spec.triggers);
+  });
+
   test('preserves state metadata', () => {
     const spec: StateMachine = {
       key: 'machine',

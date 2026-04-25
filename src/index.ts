@@ -22,6 +22,8 @@ export {
   guardSchema,
   namedGuardSchema,
   metaSchema,
+  triggerSchema,
+  triggersSchema,
   transitionSchema,
   transitionObjectSchema,
   transitionsSchema,

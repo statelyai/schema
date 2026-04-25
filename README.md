@@ -155,7 +155,25 @@ Extends State with:
 | `profile` | `string` | Execution profile short name or URI |
 | `queryLanguage` | `string` | Expression language |
 | `context` | `Record<string, JSON value>` | Initial context values |
+| `triggers` | `Trigger[]` | Optional machine-level trigger metadata |
 | `schemas` | `{ input?, context?, events?, output? }` | JSON Schema definitions for input, context, event payloads, and output |
+
+### Triggers
+
+Triggers are optional root-level metadata objects. The core spec preserves them
+but does not interpret them.
+
+```json
+{
+  "triggers": [
+    { "type": "webhook", "path": "/api/orders" },
+    { "type": "cron", "schedule": "0 9 * * *" }
+  ]
+}
+```
+
+Each trigger must have a string `type` and may include additional JSON-valued
+fields defined by a profile or runtime.
 
 ### Transitions
 

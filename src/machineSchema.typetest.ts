@@ -24,6 +24,8 @@ import type {
   namedGuardSchema,
   invokeSchema,
   retrySchema,
+  triggerSchema,
+  triggersSchema,
   schemasSchema,
 } from './machineSchema';
 
@@ -42,6 +44,8 @@ type Guard = z.infer<typeof guardSchema>;
 type NamedGuard = z.infer<typeof namedGuardSchema>;
 type Invoke = z.infer<typeof invokeSchema>;
 type Retry = z.infer<typeof retrySchema>;
+type Trigger = z.infer<typeof triggerSchema>;
+type Triggers = z.infer<typeof triggersSchema>;
 type Schemas = z.infer<typeof schemasSchema>;
 
 // --- Helpers ---
@@ -59,6 +63,7 @@ assert<StateMachine>({
   version: '1.0',
   queryLanguage: 'jsonata',
   context: { count: 0 },
+  triggers: [{ type: 'webhook', path: '/api/orders' }],
   initial: 'idle',
   states: {
     idle: { on: { GO: { target: 'active' } } },
@@ -236,6 +241,21 @@ assert<Retry>({ maxAttempts: 5, interval: 'PT5S' });
 
 // @ts-expect-error — maxAttempts required
 assert<Retry>({ interval: 1000 });
+
+// ============================================================
+// Triggers — well-typed
+// ============================================================
+
+assert<Trigger>({ type: 'webhook', path: '/api/orders' });
+assert<Trigger>({ type: 'cron', schedule: '0 9 * * *' });
+assert<Triggers>([{ type: 'webhook' }]);
+assert<Triggers>(undefined);
+
+// @ts-expect-error — trigger requires type
+assert<Trigger>({ path: '/api/orders' });
+
+// @ts-expect-error — trigger extra fields must be JSON values
+assert<Trigger>({ type: 'webhook', handler: () => undefined });
 
 // ============================================================
 // Schemas

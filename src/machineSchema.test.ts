@@ -61,6 +61,27 @@ describe('machineSchema', () => {
     });
   });
 
+  test('triggers are optional root-level metadata objects', () => {
+    parseMachine({
+      triggers: [
+        { type: 'webhook', path: '/api/orders' },
+        { type: 'cron', schedule: '0 9 * * *' },
+      ],
+    });
+
+    assert.throws(() =>
+      parseMachine({
+        triggers: [{ path: '/api/orders' }],
+      })
+    );
+
+    assert.throws(() =>
+      parseMachine({
+        triggers: [{ type: 'webhook', handler: () => undefined }],
+      })
+    );
+  });
+
   test('freeform values must be JSON values', () => {
     assert.throws(() =>
       parseMachine({

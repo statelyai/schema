@@ -193,6 +193,24 @@
         "$ref": "#/$defs/__schema0"
       }
     },
+    "triggers": {
+      "description": "Optional machine-level trigger metadata for runtimes and workflow hosts",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": {
+          "$ref": "#/$defs/__schema0"
+        }
+      }
+    },
     "schemas": {
       "type": "object",
       "properties": {

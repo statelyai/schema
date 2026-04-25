@@ -116,6 +116,16 @@ export const guardSchema = z.union([namedGuardSchema, expressionSchema]);
 
 export const metaSchema = z.record(z.string(), jsonValueSchema);
 
+// --- Triggers ---
+
+export const triggerSchema = z
+  .object({
+    type: z.string(),
+  })
+  .catchall(jsonValueSchema);
+
+export const triggersSchema = z.array(triggerSchema).optional();
+
 // --- Transitions ---
 
 export const transitionObjectSchema = z.object({
@@ -321,6 +331,9 @@ export const machineSchema = stateSchema.safeExtend({
     .record(z.string(), jsonValueSchema)
     .optional()
     .describe('Initial context values'),
+  triggers: triggersSchema.describe(
+    'Optional machine-level trigger metadata for runtimes and workflow hosts'
+  ),
   schemas: schemasSchema,
 }).strict();
 
