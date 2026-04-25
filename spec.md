@@ -88,7 +88,7 @@ A profile MAY define semantics for:
 - named `Guard.type`
 - `Invoke.src`
 
-A profile MUST NOT redefine the core document shape, reference grammar, event descriptor grammar, or `initial` semantics. Profiles MAY define additional JSON-valued fields on profile-defined action objects.
+A profile MUST NOT redefine the core document shape, reference grammar, event descriptor grammar, or `initial` semantics. Profiles MAY define additional JSON-valued fields on profile-defined action objects, named guard objects, and invoke objects.
 
 `profile` is a single optional string. Its value MUST be either:
 
