@@ -10,7 +10,12 @@ import {
 } from './toXState';
 import type { ExpressionEvaluator } from './toXState';
 import type { StateMachine } from './machineSchema';
-import { convertSpecToMachine, convertSpecToConfig } from './index';
+import {
+  convertSpecToMachine,
+  convertSpecToConfig,
+  getXStateConversionSupport,
+  canConvertToXState,
+} from './index';
 import { createJsonataEvaluator } from './jsonata';
 import { createJmespathEvaluator } from './jmespath';
 import { createJsonpathEvaluator } from './jsonpath';
@@ -693,6 +698,20 @@ describe('jsonata converter', () => {
     assert.throws(() => convertSpecToMachine(spec), /jsonata evaluator is async/i);
   });
 
+  test('xstate conversion support helper reports supported machines', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      profile: 'xstate',
+      queryLanguage: 'jmespath',
+      states: {},
+    };
+
+    assert.deepStrictEqual(getXStateConversionSupport(spec), {
+      supported: true,
+    });
+    assert.strictEqual(canConvertToXState(spec), true);
+  });
+
   test('xstate conversion accepts the canonical xstate profile URI', () => {
     const spec: StateMachine = {
       key: 'machine',
@@ -724,6 +743,53 @@ describe('jsonata converter', () => {
     assert.throws(
       () => convertSpecToMachine(spec),
       /only supports machines with no profile or the xstate profile/i
+    );
+    assert.deepStrictEqual(getXStateConversionSupport(spec), {
+      supported: false,
+      reason:
+        'XState conversion only supports machines with no profile or the xstate profile. Received "serverlessworkflow".',
+    });
+    assert.strictEqual(canConvertToXState(spec), false);
+  });
+
+  test('xstate conversion support helper reports unsupported invoke semantics', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jmespath',
+      states: {
+        loading: {
+          invoke: [
+            {
+              src: 'fetchData',
+              timeout: 'PT30S',
+            },
+          ],
+        },
+      },
+    };
+
+    assert.deepStrictEqual(getXStateConversionSupport(spec), {
+      supported: false,
+      reason:
+        'Unsupported invoke semantics for XState conversion at "machine.loading.invoke[0]": timeout. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().',
+    });
+    assert.strictEqual(canConvertToXState(spec), false);
+  });
+
+  test('xstate conversion support helper respects custom evaluators', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      states: {},
+    };
+
+    assert.deepStrictEqual(
+      getXStateConversionSupport(spec, { evaluate: () => undefined }),
+      { supported: true }
+    );
+    assert.strictEqual(
+      canConvertToXState(spec, { evaluate: () => undefined }),
+      true
     );
   });
 

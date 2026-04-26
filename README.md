@@ -78,6 +78,23 @@ the `xstate` profile identifier, using either the registered short name or the
 canonical URI. If a machine declares a different profile, conversion fails
 explicitly instead of silently claiming support.
 
+You can also check support ahead of time:
+
+```ts
+import {
+  getXStateConversionSupport,
+  canConvertToXState,
+} from '@statelyai/schema';
+
+const support = getXStateConversionSupport(spec);
+
+if (!support.supported) {
+  console.error(support.reason);
+}
+
+canConvertToXState(spec); // boolean
+```
+
 You can override the query language or provide a custom evaluator:
 
 ```ts
