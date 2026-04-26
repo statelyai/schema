@@ -19,6 +19,23 @@ The root-level `triggers` field is also preserved when converting a machine to a
 XState config object. XState-oriented runtimes MAY use those trigger objects as
 metadata, but this profile does not define their execution semantics.
 
+## Support Boundary
+
+This repository currently provides built-in XState-oriented support through
+`convertSpecToConfig()`, `convertSpecToMachine()`, and the XState support helper
+APIs.
+
+That built-in support currently means:
+
+- machines with no declared profile are accepted
+- machines declaring the `xstate` profile are accepted by short name or canonical URI
+- built-in query language support is limited to synchronous evaluators such as `jmespath` and `jsonpath`
+- `jsonata` requires a caller-provided synchronous `evaluate` function
+- invoke-level `timeout`, `heartbeat`, and `retry` semantics are rejected by the built-in converter
+
+The converter and support helpers are the repository's executable support
+boundary for this profile.
+
 ## Actions
 
 The profile defines these action types:
