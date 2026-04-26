@@ -120,8 +120,24 @@ Profile documents:
 - [XState profile](./profiles/xstate.md)
 - [Serverless Workflow profile](./profiles/serverlessworkflow.md)
 
+<!-- profile helper exports from src/index.ts and src/profiles.ts -->
+
 Registered short profile names exported by the package currently include `xstate`
 and `serverlessworkflow`.
+
+You can also use the exported profile helpers instead of hardcoding strings:
+
+```ts
+import {
+  XSTATE_PROFILE_SHORT_NAME,
+  XSTATE_PROFILE_URI,
+  normalizeRegisteredProfile,
+  matchesRegisteredProfile,
+} from '@statelyai/schema';
+
+normalizeRegisteredProfile(XSTATE_PROFILE_URI); // "xstate"
+matchesRegisteredProfile('https://stately.ai/specifications/xstate', XSTATE_PROFILE_SHORT_NAME); // true
+```
 
 ## Examples
 
