@@ -8,7 +8,12 @@ export {
   registeredProfiles,
   isRegisteredProfileName,
   getRegisteredProfile,
+  normalizeRegisteredProfile,
   matchesRegisteredProfile,
+  XSTATE_PROFILE_SHORT_NAME,
+  XSTATE_PROFILE_URI,
+  SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
+  SERVERLESSWORKFLOW_PROFILE_URI,
 } from './profiles';
 export {
   actionSchema,

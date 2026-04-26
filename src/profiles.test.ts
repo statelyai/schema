@@ -4,22 +4,30 @@ import {
   registeredProfiles,
   isRegisteredProfileName,
   getRegisteredProfile,
+  normalizeRegisteredProfile,
   matchesRegisteredProfile,
+  XSTATE_PROFILE_SHORT_NAME,
+  XSTATE_PROFILE_URI,
+  SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
+  SERVERLESSWORKFLOW_PROFILE_URI,
 } from './profiles';
 
 describe('profiles', () => {
   test('registered profile names include xstate', () => {
-    assert.ok(isRegisteredProfileName('xstate'));
+    assert.ok(isRegisteredProfileName(XSTATE_PROFILE_SHORT_NAME));
     assert.ok(
-      registeredProfiles.some((profile) => profile.shortName === 'xstate')
+      registeredProfiles.some(
+        (profile) => profile.shortName === XSTATE_PROFILE_SHORT_NAME
+      )
     );
   });
 
   test('registered profile names include serverlessworkflow', () => {
-    assert.ok(isRegisteredProfileName('serverlessworkflow'));
+    assert.ok(isRegisteredProfileName(SERVERLESSWORKFLOW_PROFILE_SHORT_NAME));
     assert.ok(
       registeredProfiles.some(
-        (profile) => profile.shortName === 'serverlessworkflow'
+        (profile) =>
+          profile.shortName === SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
       )
     );
   });
@@ -29,22 +37,52 @@ describe('profiles', () => {
   });
 
   test('registered profiles can be resolved by short name or canonical URI', () => {
-    assert.strictEqual(getRegisteredProfile('xstate')?.shortName, 'xstate');
     assert.strictEqual(
-      getRegisteredProfile('https://stately.ai/specifications/xstate')
-        ?.shortName,
-      'xstate'
+      getRegisteredProfile(XSTATE_PROFILE_SHORT_NAME)?.shortName,
+      XSTATE_PROFILE_SHORT_NAME
+    );
+    assert.strictEqual(
+      getRegisteredProfile(XSTATE_PROFILE_URI)?.shortName,
+      XSTATE_PROFILE_SHORT_NAME
+    );
+    assert.strictEqual(
+      getRegisteredProfile(SERVERLESSWORKFLOW_PROFILE_URI)?.shortName,
+      SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
     );
   });
 
+  test('registered profiles can be normalized to their short names', () => {
+    assert.strictEqual(
+      normalizeRegisteredProfile(XSTATE_PROFILE_SHORT_NAME),
+      XSTATE_PROFILE_SHORT_NAME
+    );
+    assert.strictEqual(
+      normalizeRegisteredProfile(XSTATE_PROFILE_URI),
+      XSTATE_PROFILE_SHORT_NAME
+    );
+    assert.strictEqual(
+      normalizeRegisteredProfile(SERVERLESSWORKFLOW_PROFILE_URI),
+      SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
+    );
+    assert.strictEqual(normalizeRegisteredProfile('fake'), undefined);
+    assert.strictEqual(normalizeRegisteredProfile(undefined), undefined);
+  });
+
   test('profile matching treats short name and canonical URI as equivalent', () => {
-    assert.ok(matchesRegisteredProfile('xstate', 'xstate'));
     assert.ok(
       matchesRegisteredProfile(
-        'https://stately.ai/specifications/xstate',
-        'xstate'
+        XSTATE_PROFILE_SHORT_NAME,
+        XSTATE_PROFILE_SHORT_NAME
       )
     );
-    assert.ok(!matchesRegisteredProfile('serverlessworkflow', 'xstate'));
+    assert.ok(
+      matchesRegisteredProfile(XSTATE_PROFILE_URI, XSTATE_PROFILE_SHORT_NAME)
+    );
+    assert.ok(
+      !matchesRegisteredProfile(
+        SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
+        XSTATE_PROFILE_SHORT_NAME
+      )
+    );
   });
 });

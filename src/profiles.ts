@@ -4,16 +4,22 @@ export interface RegisteredProfile {
   canonicalUri?: string;
 }
 
+export const XSTATE_PROFILE_SHORT_NAME = 'xstate';
+export const XSTATE_PROFILE_URI = 'https://stately.ai/specifications/xstate';
+export const SERVERLESSWORKFLOW_PROFILE_SHORT_NAME = 'serverlessworkflow';
+export const SERVERLESSWORKFLOW_PROFILE_URI =
+  'https://serverlessworkflow.io/specification/1.0.3';
+
 export const registeredProfiles: RegisteredProfile[] = [
   {
-    shortName: 'xstate',
+    shortName: XSTATE_PROFILE_SHORT_NAME,
     docsPath: './profiles/xstate.md',
-    canonicalUri: 'https://stately.ai/specifications/xstate',
+    canonicalUri: XSTATE_PROFILE_URI,
   },
   {
-    shortName: 'serverlessworkflow',
+    shortName: SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
     docsPath: './profiles/serverlessworkflow.md',
-    canonicalUri: 'https://serverlessworkflow.io/specification/1.0.3',
+    canonicalUri: SERVERLESSWORKFLOW_PROFILE_URI,
   },
 ];
 
@@ -34,17 +40,16 @@ export function getRegisteredProfile(
   );
 }
 
+export function normalizeRegisteredProfile(
+  value: string | undefined
+): string | undefined {
+  if (!value) return undefined;
+  return getRegisteredProfile(value)?.shortName;
+}
+
 export function matchesRegisteredProfile(
   value: string | undefined,
   shortName: string
 ): boolean {
-  if (!value) return false;
-
-  const profile = registeredProfiles.find(
-    (registeredProfile) => registeredProfile.shortName === shortName
-  );
-
-  if (!profile) return false;
-
-  return value === profile.shortName || value === profile.canonicalUri;
+  return normalizeRegisteredProfile(value) === shortName;
 }
