@@ -7,6 +7,8 @@ export {
 export {
   registeredProfiles,
   isRegisteredProfileName,
+  getRegisteredProfile,
+  matchesRegisteredProfile,
 } from './profiles';
 export {
   actionSchema,
@@ -52,12 +54,22 @@ import {
 } from './toXState';
 import { createJmespathEvaluator } from './jmespath';
 import { createJsonpathEvaluator } from './jsonpath';
+import { matchesRegisteredProfile } from './profiles';
 
 export type QueryLanguage = string;
 
 export interface ConvertOptions {
   queryLanguage?: QueryLanguage;
   evaluate?: ExpressionEvaluator;
+}
+
+function assertXStateProfileSupported(spec: StateMachine): void {
+  if (spec.profile == null) return;
+  if (matchesRegisteredProfile(spec.profile, 'xstate')) return;
+
+  throw new Error(
+    `XState conversion only supports machines with no profile or the xstate profile. Received "${spec.profile}".`
+  );
 }
 
 function resolveEvaluator(
@@ -86,6 +98,7 @@ export function convertSpecToMachine(
   spec: StateMachine,
   options?: ConvertOptions
 ) {
+  assertXStateProfileSupported(spec);
   return toXStateMachine(spec, resolveEvaluator(spec, options));
 }
 
@@ -93,5 +106,6 @@ export function convertSpecToConfig(
   spec: StateMachine,
   options?: ConvertOptions
 ) {
+  assertXStateProfileSupported(spec);
   return toXStateConfig(spec, resolveEvaluator(spec, options));
 }

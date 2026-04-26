@@ -73,6 +73,11 @@ const [state] = initialTransition(machine);
 const [next] = transition(machine, state, { type: 'SUBMIT' });
 ```
 
+These XState conversion helpers support machines with no declared profile or with
+the `xstate` profile identifier, using either the registered short name or the
+canonical URI. If a machine declares a different profile, conversion fails
+explicitly instead of silently claiming support.
+
 You can override the query language or provide a custom evaluator:
 
 ```ts
@@ -106,6 +111,10 @@ import machineJsonSchema from '@statelyai/schema/machine.json';
 ## Specification
 
 See the full [Stately Machine Specification](./spec.md) for formal definitions, conformance requirements, and detailed semantics.
+
+Structural validation and executable profile support are intentionally separate:
+a machine can validate against the core schema even if a given runtime does not
+implement the selected profile's action, guard, invoke, or trigger semantics.
 
 Profile documents:
 - [XState profile](./profiles/xstate.md)

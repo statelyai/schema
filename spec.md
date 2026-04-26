@@ -104,6 +104,34 @@ Unknown short profile names are errors. Unknown URI profile identifiers are well
 | `xstate` | `https://stately.ai/specifications/xstate` | [XState profile](./profiles/xstate.md) |
 | `serverlessworkflow` | `https://serverlessworkflow.io/specification/1.0.3` | [Serverless Workflow profile](./profiles/serverlessworkflow.md) |
 
+### Profile Support
+
+Structural well-formedness and executable profile support are distinct.
+
+A machine can be well-formed under the core specification even when an implementation
+cannot execute or fully interpret its selected profile.
+
+An implementation **supports** a profile when it:
+
+- recognizes the machine's `profile` identifier, whether by registered short name or equivalent canonical URI
+- applies the profile's documented semantics for the profile-defined constructs it claims to execute
+- does not silently reinterpret profile-defined semantics as different core semantics
+
+When `profile` is omitted, a machine uses only core semantics plus any implementation-defined
+behavior outside the scope of profile conformance.
+
+When a machine declares a profile, unsupported profile-defined semantics are not structural
+errors by themselves. They are support errors or unsupported-feature conditions.
+
+If an implementation encounters a profile-defined action type, named guard type, invoke
+source, or trigger metadata shape that it does not support, it MAY:
+
+- reject execution of the machine as unsupported
+- preserve and round-trip the content without executing those semantics
+
+An implementation MUST NOT claim profile support while ignoring required semantics from that
+profile for the constructs it accepts as executable.
+
 ## States
 
 A state represents a distinct mode or situation of the machine.

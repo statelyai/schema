@@ -24,3 +24,27 @@ const registeredProfileNames = new Set(
 export function isRegisteredProfileName(value: string): boolean {
   return registeredProfileNames.has(value);
 }
+
+export function getRegisteredProfile(
+  value: string
+): RegisteredProfile | undefined {
+  return registeredProfiles.find(
+    (profile) =>
+      profile.shortName === value || profile.canonicalUri === value
+  );
+}
+
+export function matchesRegisteredProfile(
+  value: string | undefined,
+  shortName: string
+): boolean {
+  if (!value) return false;
+
+  const profile = registeredProfiles.find(
+    (registeredProfile) => registeredProfile.shortName === shortName
+  );
+
+  if (!profile) return false;
+
+  return value === profile.shortName || value === profile.canonicalUri;
+}

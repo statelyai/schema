@@ -693,6 +693,40 @@ describe('jsonata converter', () => {
     assert.throws(() => convertSpecToMachine(spec), /jsonata evaluator is async/i);
   });
 
+  test('xstate conversion accepts the canonical xstate profile URI', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      profile: 'https://stately.ai/specifications/xstate',
+      queryLanguage: 'jmespath',
+      initial: 'idle',
+      states: {
+        idle: { on: { GO: { target: 'active' } } },
+        active: {},
+      },
+    };
+
+    const config = convertSpecToConfig(spec);
+    assert.strictEqual(config.initial, 'idle');
+  });
+
+  test('xstate conversion rejects declared non-xstate profiles', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      profile: 'serverlessworkflow',
+      queryLanguage: 'jmespath',
+      states: {},
+    };
+
+    assert.throws(
+      () => convertSpecToConfig(spec),
+      /only supports machines with no profile or the xstate profile/i
+    );
+    assert.throws(
+      () => convertSpecToMachine(spec),
+      /only supports machines with no profile or the xstate profile/i
+    );
+  });
+
   test('async evaluators are rejected during execution', () => {
     const spec: StateMachine = {
       key: 'machine',
