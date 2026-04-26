@@ -17,6 +17,21 @@ be the upstream Serverless Workflow specification.
 The profile maps Serverless Workflow task-oriented runtime semantics onto the
 core machine format without adding those task kinds to the core specification.
 
+## Support Boundary
+
+This repository currently treats the Serverless Workflow profile as:
+
+- structurally supported by the core schema
+- documented by this profile document
+- represented in the converted examples
+
+This repository does **not** currently ship an executable Serverless Workflow
+runtime or a built-in converter that claims support for these profile semantics.
+
+In particular, the built-in `convertSpecToConfig()` and `convertSpecToMachine()`
+helpers target the XState execution path and therefore reject machines that
+declare the Serverless Workflow profile.
+
 ## Invoke Sources
 
 The converted examples use these invoke sources:

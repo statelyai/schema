@@ -143,6 +143,10 @@ matchesRegisteredProfile('https://stately.ai/specifications/xstate', XSTATE_PROF
 
 Converted Serverless Workflow examples are available in [`examples/serverlessworkflow`](./examples/serverlessworkflow). They use a Serverless Workflow profile URI and profile-specific invokes/actions while staying valid against the core machine schema.
 
+Those examples are structural/profile examples only. The built-in
+`convertSpecToConfig()` and `convertSpecToMachine()` helpers intentionally do
+not claim support for the Serverless Workflow profile and reject those machines.
+
 ### States
 
 <!-- state node properties aligned with spec.md and src/machineSchema.ts -->

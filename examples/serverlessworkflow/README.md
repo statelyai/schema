@@ -14,3 +14,8 @@ profile-specific actions.
 
 This keeps each example valid against the core structural schema without adding
 Serverless Workflow built-ins to the core specification.
+
+These examples are structural translations, not executable examples for the
+built-in XState conversion helpers. In this repository they are intended to
+validate the document shape and the profile mapping, not to run through
+`convertSpecToConfig()` or `convertSpecToMachine()`.
