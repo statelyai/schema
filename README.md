@@ -123,6 +123,7 @@ JSON Schema files are also available for editor tooling:
 
 ```ts
 import machineJsonSchema from '@statelyai/schema/machine.json';
+import scxmlJsonSchema from '@statelyai/schema/scxml.json';
 ```
 
 ## Specification
@@ -136,11 +137,12 @@ implement the selected profile's action, guard, invoke, or trigger semantics.
 Profile documents:
 - [XState profile](./profiles/xstate.md)
 - [Serverless Workflow profile](./profiles/serverlessworkflow.md)
+- [SCXML profile](./profiles/scxml.md)
 
 <!-- profile helper exports from src/index.ts and src/profiles.ts -->
 
 Registered short profile names exported by the package currently include `xstate`
-and `serverlessworkflow`.
+`serverlessworkflow`, and `scxml`.
 
 You can also use the exported profile helpers instead of hardcoding strings:
 
@@ -163,6 +165,10 @@ Converted Serverless Workflow examples are available in [`examples/serverlesswor
 Those examples are structural/profile examples only. The built-in
 `convertSpecToConfig()` and `convertSpecToMachine()` helpers intentionally do
 not claim support for the Serverless Workflow profile and reject those machines.
+
+Semantic SCXML examples are available in [`examples/scxml`](./examples/scxml).
+They validate against `scxmlDocumentSchema` and preserve SCXML constructs
+directly instead of lowering them into the core machine schema.
 
 ### States
 

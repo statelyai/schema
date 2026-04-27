@@ -103,6 +103,7 @@ Unknown short profile names are errors. Unknown URI profile identifiers are well
 |---|---|---|
 | `xstate` | `https://stately.ai/specifications/xstate` | [XState profile](./profiles/xstate.md) |
 | `serverlessworkflow` | `https://serverlessworkflow.io/specification/1.0.3` | [Serverless Workflow profile](./profiles/serverlessworkflow.md) |
+| `scxml` | `https://www.w3.org/TR/scxml/` | [SCXML profile](./profiles/scxml.md) |
 
 ### Profile Support
 

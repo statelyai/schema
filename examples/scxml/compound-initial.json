@@ -1,0 +1,54 @@
+{
+  "profile": "scxml",
+  "version": "1.0",
+  "name": "compound-initial",
+  "initial": "workflow",
+  "states": {
+    "workflow": {
+      "kind": "state",
+      "initialTransition": {
+        "kind": "initial",
+        "transition": {
+          "kind": "transition",
+          "target": "collect",
+          "actions": [
+            {
+              "kind": "log",
+              "label": "initial",
+              "expr": "'entering workflow'"
+            }
+          ]
+        }
+      },
+      "states": {
+        "collect": {
+          "kind": "state",
+          "transitions": [
+            {
+              "kind": "transition",
+              "event": "submit",
+              "target": "review"
+            }
+          ],
+          "order": 1
+        },
+        "review": {
+          "kind": "state",
+          "transitions": [
+            {
+              "kind": "transition",
+              "event": "approve",
+              "target": "done"
+            }
+          ],
+          "order": 2
+        },
+        "done": {
+          "kind": "final",
+          "order": 3
+        }
+      },
+      "order": 1
+    }
+  }
+}

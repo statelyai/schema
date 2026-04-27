@@ -1,0 +1,74 @@
+{
+  "profile": "scxml",
+  "version": "1.0",
+  "name": "datamodel-actions",
+  "datamodel": "ecmascript",
+  "binding": "early",
+  "data": [
+    {
+      "kind": "data",
+      "id": "count",
+      "expr": "0"
+    },
+    {
+      "kind": "data",
+      "id": "lastEvent",
+      "value": null
+    }
+  ],
+  "initial": "active",
+  "states": {
+    "active": {
+      "kind": "state",
+      "onEntry": [
+        {
+          "kind": "assign",
+          "location": "count",
+          "expr": "count + 1"
+        },
+        {
+          "kind": "send",
+          "event": "started",
+          "target": "#_parent",
+          "delay": "PT1S",
+          "params": [
+            {
+              "kind": "param",
+              "name": "count",
+              "location": "count"
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "kind": "transition",
+          "event": [
+            "stop",
+            "error.*"
+          ],
+          "target": "done",
+          "actions": [
+            {
+              "kind": "assign",
+              "location": "lastEvent",
+              "expr": "_event.name"
+            }
+          ]
+        }
+      ],
+      "order": 1
+    },
+    "done": {
+      "kind": "final",
+      "donedata": {
+        "kind": "donedata",
+        "content": {
+          "kind": "content",
+          "expr": "{ count: count, lastEvent: lastEvent }"
+        }
+      },
+      "order": 2
+    }
+  }
+}

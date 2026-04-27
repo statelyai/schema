@@ -10,6 +10,8 @@ import {
   XSTATE_PROFILE_URI,
   SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
   SERVERLESSWORKFLOW_PROFILE_URI,
+  SCXML_PROFILE_SHORT_NAME,
+  SCXML_PROFILE_URI,
 } from './profiles';
 
 describe('profiles', () => {
@@ -32,6 +34,15 @@ describe('profiles', () => {
     );
   });
 
+  test('registered profile names include scxml', () => {
+    assert.ok(isRegisteredProfileName(SCXML_PROFILE_SHORT_NAME));
+    assert.ok(
+      registeredProfiles.some(
+        (profile) => profile.shortName === SCXML_PROFILE_SHORT_NAME
+      )
+    );
+  });
+
   test('unknown profile names are not registered', () => {
     assert.ok(!isRegisteredProfileName('fake'));
   });
@@ -49,6 +60,10 @@ describe('profiles', () => {
       getRegisteredProfile(SERVERLESSWORKFLOW_PROFILE_URI)?.shortName,
       SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
     );
+    assert.strictEqual(
+      getRegisteredProfile(SCXML_PROFILE_URI)?.shortName,
+      SCXML_PROFILE_SHORT_NAME
+    );
   });
 
   test('registered profiles can be normalized to their short names', () => {
@@ -63,6 +78,10 @@ describe('profiles', () => {
     assert.strictEqual(
       normalizeRegisteredProfile(SERVERLESSWORKFLOW_PROFILE_URI),
       SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
+    );
+    assert.strictEqual(
+      normalizeRegisteredProfile(SCXML_PROFILE_URI),
+      SCXML_PROFILE_SHORT_NAME
     );
     assert.strictEqual(normalizeRegisteredProfile('fake'), undefined);
     assert.strictEqual(normalizeRegisteredProfile(undefined), undefined);

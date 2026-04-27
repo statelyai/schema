@@ -9,6 +9,8 @@ export const XSTATE_PROFILE_URI = 'https://stately.ai/specifications/xstate';
 export const SERVERLESSWORKFLOW_PROFILE_SHORT_NAME = 'serverlessworkflow';
 export const SERVERLESSWORKFLOW_PROFILE_URI =
   'https://serverlessworkflow.io/specification/1.0.3';
+export const SCXML_PROFILE_SHORT_NAME = 'scxml';
+export const SCXML_PROFILE_URI = 'https://www.w3.org/TR/scxml/';
 
 export const registeredProfiles: RegisteredProfile[] = [
   {
@@ -20,6 +22,11 @@ export const registeredProfiles: RegisteredProfile[] = [
     shortName: SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
     docsPath: './profiles/serverlessworkflow.md',
     canonicalUri: SERVERLESSWORKFLOW_PROFILE_URI,
+  },
+  {
+    shortName: SCXML_PROFILE_SHORT_NAME,
+    docsPath: './profiles/scxml.md',
+    canonicalUri: SCXML_PROFILE_URI,
   },
 ];
 

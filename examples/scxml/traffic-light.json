@@ -1,0 +1,41 @@
+{
+  "profile": "scxml",
+  "version": "1.0",
+  "name": "traffic-light",
+  "initial": "green",
+  "states": {
+    "green": {
+      "kind": "state",
+      "transitions": [
+        {
+          "kind": "transition",
+          "event": "timer",
+          "target": "yellow"
+        }
+      ],
+      "order": 1
+    },
+    "yellow": {
+      "kind": "state",
+      "transitions": [
+        {
+          "kind": "transition",
+          "event": "timer",
+          "target": "red"
+        }
+      ],
+      "order": 2
+    },
+    "red": {
+      "kind": "state",
+      "transitions": [
+        {
+          "kind": "transition",
+          "event": "timer",
+          "target": "green"
+        }
+      ],
+      "order": 3
+    }
+  }
+}

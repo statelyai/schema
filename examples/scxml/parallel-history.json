@@ -1,0 +1,81 @@
+{
+  "profile": "scxml",
+  "version": "1.0",
+  "name": "parallel-history",
+  "initial": "app",
+  "states": {
+    "app": {
+      "kind": "parallel",
+      "states": {
+        "editor": {
+          "kind": "state",
+          "initial": "editing",
+          "states": {
+            "editorHistory": {
+              "kind": "history",
+              "type": "deep",
+              "transition": {
+                "kind": "transition",
+                "target": "editing"
+              },
+              "order": 1
+            },
+            "editing": {
+              "kind": "state",
+              "transitions": [
+                {
+                  "kind": "transition",
+                  "event": "preview",
+                  "target": "previewing"
+                }
+              ],
+              "order": 2
+            },
+            "previewing": {
+              "kind": "state",
+              "transitions": [
+                {
+                  "kind": "transition",
+                  "event": "edit",
+                  "target": "editing"
+                }
+              ],
+              "order": 3
+            }
+          },
+          "order": 1
+        },
+        "connection": {
+          "kind": "state",
+          "initial": "online",
+          "states": {
+            "online": {
+              "kind": "state",
+              "transitions": [
+                {
+                  "kind": "transition",
+                  "event": "disconnect",
+                  "target": "offline"
+                }
+              ],
+              "order": 1
+            },
+            "offline": {
+              "kind": "state",
+              "transitions": [
+                {
+                  "kind": "transition",
+                  "event": "connect",
+                  "target": "online"
+                }
+              ],
+              "order": 2
+            }
+          },
+          "order": 2
+        }
+      },
+      "order": 1
+    }
+  }
+}

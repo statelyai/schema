@@ -1,0 +1,1623 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "profile": {
+      "type": "string",
+      "const": "scxml"
+    },
+    "version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "name": {
+      "type": "string"
+    },
+    "datamodel": {
+      "type": "string"
+    },
+    "binding": {
+      "type": "string",
+      "enum": [
+        "early",
+        "late"
+      ]
+    },
+    "initial": {
+      "description": "SCXML legal state specification",
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "data"
+          },
+          "id": {
+            "type": "string"
+          },
+          "src": {
+            "type": "string"
+          },
+          "expr": {
+            "description": "SCXML data-model expression string",
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "extensions": {
+            "description": "JSON-valued extension fields for custom processors",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/__schema0"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "states": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ScxmlElement"
+      }
+    },
+    "extensions": {
+      "description": "JSON-valued extension fields for custom processors",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/__schema0"
+      }
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    },
+    "ScxmlElement": {
+      "id": "ScxmlElement",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "state"
+            },
+            "id": {
+              "type": "string"
+            },
+            "order": {
+              "type": "number"
+            },
+            "datamodel": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "datamodel"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "data"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "src": {
+                        "type": "string"
+                      },
+                      "expr": {
+                        "description": "SCXML data-model expression string",
+                        "type": "string"
+                      },
+                      "value": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "extensions": {
+                  "description": "JSON-valued extension fields for custom processors",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "onEntry": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "onExit": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "initial": {
+              "description": "SCXML legal state specification",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ]
+            },
+            "initialTransition": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "initial"
+                },
+                "transition": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "transition"
+                    },
+                    "event": {
+                      "description": "SCXML event descriptor list",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "minItems": 1,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      ]
+                    },
+                    "cond": {
+                      "description": "SCXML data-model expression string",
+                      "type": "string"
+                    },
+                    "target": {
+                      "description": "SCXML legal state specification",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "minItems": 1,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "internal",
+                        "external"
+                      ]
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "extensions": {
+                      "description": "JSON-valued extension fields for custom processors",
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                "extensions": {
+                  "description": "JSON-valued extension fields for custom processors",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "transition"
+              ],
+              "additionalProperties": false
+            },
+            "transitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "transition"
+                  },
+                  "event": {
+                    "description": "SCXML event descriptor list",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "cond": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "target": {
+                    "description": "SCXML legal state specification",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "internal",
+                      "external"
+                    ]
+                  },
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema1"
+                    }
+                  },
+                  "extensions": {
+                    "description": "JSON-valued extension fields for custom processors",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "invokes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "invoke"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "typeexpr": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "src": {
+                    "type": "string"
+                  },
+                  "srcexpr": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "idlocation": {
+                    "description": "SCXML data-model location expression string",
+                    "type": "string"
+                  },
+                  "namelist": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "autoforward": {
+                    "type": "boolean"
+                  },
+                  "params": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "param"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "expr": {
+                          "description": "SCXML data-model expression string",
+                          "type": "string"
+                        },
+                        "location": {
+                          "description": "SCXML data-model location expression string",
+                          "type": "string"
+                        },
+                        "extensions": {
+                          "description": "JSON-valued extension fields for custom processors",
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "$ref": "#/$defs/__schema0"
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "content": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "content"
+                      },
+                      "expr": {
+                        "description": "SCXML data-model expression string",
+                        "type": "string"
+                      },
+                      "value": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "raw": {
+                        "type": "string"
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "finalize": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "finalize"
+                      },
+                      "actions": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/__schema1"
+                        }
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "extensions": {
+                    "description": "JSON-valued extension fields for custom processors",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "states": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/ScxmlElement"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "parallel"
+            },
+            "id": {
+              "type": "string"
+            },
+            "order": {
+              "type": "number"
+            },
+            "datamodel": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "datamodel"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "data"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "src": {
+                        "type": "string"
+                      },
+                      "expr": {
+                        "description": "SCXML data-model expression string",
+                        "type": "string"
+                      },
+                      "value": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "extensions": {
+                  "description": "JSON-valued extension fields for custom processors",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "onEntry": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "onExit": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "transitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "transition"
+                  },
+                  "event": {
+                    "description": "SCXML event descriptor list",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "cond": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "target": {
+                    "description": "SCXML legal state specification",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "internal",
+                      "external"
+                    ]
+                  },
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema1"
+                    }
+                  },
+                  "extensions": {
+                    "description": "JSON-valued extension fields for custom processors",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "invokes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "invoke"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "typeexpr": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "src": {
+                    "type": "string"
+                  },
+                  "srcexpr": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "idlocation": {
+                    "description": "SCXML data-model location expression string",
+                    "type": "string"
+                  },
+                  "namelist": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "autoforward": {
+                    "type": "boolean"
+                  },
+                  "params": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "param"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "expr": {
+                          "description": "SCXML data-model expression string",
+                          "type": "string"
+                        },
+                        "location": {
+                          "description": "SCXML data-model location expression string",
+                          "type": "string"
+                        },
+                        "extensions": {
+                          "description": "JSON-valued extension fields for custom processors",
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "$ref": "#/$defs/__schema0"
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "content": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "content"
+                      },
+                      "expr": {
+                        "description": "SCXML data-model expression string",
+                        "type": "string"
+                      },
+                      "value": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "raw": {
+                        "type": "string"
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "finalize": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "finalize"
+                      },
+                      "actions": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/__schema1"
+                        }
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "extensions": {
+                    "description": "JSON-valued extension fields for custom processors",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "states": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/ScxmlElement"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "final"
+            },
+            "id": {
+              "type": "string"
+            },
+            "order": {
+              "type": "number"
+            },
+            "onEntry": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "onExit": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "donedata": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "donedata"
+                },
+                "content": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "content"
+                    },
+                    "expr": {
+                      "description": "SCXML data-model expression string",
+                      "type": "string"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "raw": {
+                      "type": "string"
+                    },
+                    "extensions": {
+                      "description": "JSON-valued extension fields for custom processors",
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "param"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "expr": {
+                        "description": "SCXML data-model expression string",
+                        "type": "string"
+                      },
+                      "location": {
+                        "description": "SCXML data-model location expression string",
+                        "type": "string"
+                      },
+                      "extensions": {
+                        "description": "JSON-valued extension fields for custom processors",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "extensions": {
+                  "description": "JSON-valued extension fields for custom processors",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "history"
+            },
+            "id": {
+              "type": "string"
+            },
+            "order": {
+              "type": "number"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "shallow",
+                "deep"
+              ]
+            },
+            "transition": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "transition"
+                },
+                "event": {
+                  "description": "SCXML event descriptor list",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  ]
+                },
+                "cond": {
+                  "description": "SCXML data-model expression string",
+                  "type": "string"
+                },
+                "target": {
+                  "description": "SCXML legal state specification",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  ]
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "internal",
+                    "external"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "extensions": {
+                  "description": "JSON-valued extension fields for custom processors",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema1": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "raise"
+            },
+            "event": {
+              "type": "string"
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "event"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "if"
+            },
+            "cond": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "then": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "elseifs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "cond": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema1"
+                    }
+                  }
+                },
+                "required": [
+                  "cond"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "else": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "cond"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "foreach"
+            },
+            "array": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "item": {
+              "type": "string"
+            },
+            "index": {
+              "type": "string"
+            },
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "array",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "log"
+            },
+            "label": {
+              "type": "string"
+            },
+            "expr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "assign"
+            },
+            "location": {
+              "description": "SCXML data-model location expression string",
+              "type": "string"
+            },
+            "expr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "location"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "script"
+            },
+            "src": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "send"
+            },
+            "event": {
+              "type": "string"
+            },
+            "eventexpr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "targetexpr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "typeexpr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "idlocation": {
+              "description": "SCXML data-model location expression string",
+              "type": "string"
+            },
+            "delay": {
+              "type": "string"
+            },
+            "delayexpr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "namelist": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "params": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "param"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "expr": {
+                    "description": "SCXML data-model expression string",
+                    "type": "string"
+                  },
+                  "location": {
+                    "description": "SCXML data-model location expression string",
+                    "type": "string"
+                  },
+                  "extensions": {
+                    "description": "JSON-valued extension fields for custom processors",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "content": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "content"
+                },
+                "expr": {
+                  "description": "SCXML data-model expression string",
+                  "type": "string"
+                },
+                "value": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "raw": {
+                  "type": "string"
+                },
+                "extensions": {
+                  "description": "JSON-valued extension fields for custom processors",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "cancel"
+            },
+            "sendid": {
+              "type": "string"
+            },
+            "sendidexpr": {
+              "description": "SCXML data-model expression string",
+              "type": "string"
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "customAction"
+            },
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": "string"
+            },
+            "data": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "extensions": {
+              "description": "JSON-valued extension fields for custom processors",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

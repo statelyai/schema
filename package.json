@@ -61,7 +61,8 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
-"./machine.json": "./schemas/machine.json"
+    "./machine.json": "./schemas/machine.json",
+    "./scxml.json": "./schemas/scxml.json"
   },
   "dependencies": {
     "@statelyai/graph": "^0.8.0",

@@ -14,6 +14,8 @@ export {
   XSTATE_PROFILE_URI,
   SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
   SERVERLESSWORKFLOW_PROFILE_URI,
+  SCXML_PROFILE_SHORT_NAME,
+  SCXML_PROFILE_URI,
 } from './profiles';
 export {
   actionSchema,
@@ -43,6 +45,36 @@ export {
   machineSchema,
 } from './machineSchema';
 export type { StateMachine } from './machineSchema';
+export {
+  scxmlDataSchema,
+  scxmlDatamodelSchema,
+  scxmlContentSchema,
+  scxmlParamSchema,
+  scxmlDonedataSchema,
+  scxmlRaiseSchema,
+  scxmlIfSchema,
+  scxmlForeachSchema,
+  scxmlLogSchema,
+  scxmlAssignSchema,
+  scxmlScriptSchema,
+  scxmlSendSchema,
+  scxmlCancelSchema,
+  scxmlCustomActionSchema,
+  scxmlExecutableContentSchema,
+  scxmlTransitionSchema,
+  scxmlInitialSchema,
+  scxmlFinalizeSchema,
+  scxmlInvokeSchema,
+  scxmlStateSchema,
+  scxmlParallelSchema,
+  scxmlFinalSchema,
+  scxmlHistorySchema,
+  scxmlStateNodeSchema,
+  scxmlNodeSchema,
+  scxmlElementSchema,
+  scxmlDocumentSchema,
+} from './scxmlSchema';
+export type { ScxmlDocument, ScxmlElement, ScxmlNode } from './scxmlSchema';
 export {
   isExpression,
   stripDelimiters,

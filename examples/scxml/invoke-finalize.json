@@ -1,0 +1,54 @@
+{
+  "profile": "scxml",
+  "version": "1.0",
+  "name": "invoke-finalize",
+  "initial": "loading",
+  "states": {
+    "loading": {
+      "kind": "state",
+      "invokes": [
+        {
+          "kind": "invoke",
+          "id": "fetchUser",
+          "type": "scxml",
+          "src": "fetch-user.scxml",
+          "namelist": [
+            "userId"
+          ],
+          "autoforward": true,
+          "finalize": {
+            "kind": "finalize",
+            "actions": [
+              {
+                "kind": "assign",
+                "location": "user",
+                "expr": "_event.data.user"
+              }
+            ]
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "kind": "transition",
+          "event": "done.invoke.fetchUser",
+          "target": "success"
+        },
+        {
+          "kind": "transition",
+          "event": "error.platform.fetchUser",
+          "target": "failure"
+        }
+      ],
+      "order": 1
+    },
+    "success": {
+      "kind": "final",
+      "order": 2
+    },
+    "failure": {
+      "kind": "final",
+      "order": 3
+    }
+  }
+}

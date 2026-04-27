@@ -5,3 +5,4 @@ the core Stately Machine Specification.
 
 - [XState](./xstate.md)
 - [Serverless Workflow](./serverlessworkflow.md)
+- [SCXML](./scxml.md)
