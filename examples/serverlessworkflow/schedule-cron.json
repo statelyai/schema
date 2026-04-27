@@ -4,21 +4,14 @@
   "version": "0.1.0",
   "profile": "https://serverlessworkflow.io/specification/1.0.3",
   "queryLanguage": "jq",
-  "initial": "schedule",
+  "triggers": [
+    {
+      "type": "serverlessworkflow.schedule",
+      "cron": "0 0 * * *"
+    }
+  ],
+  "initial": "backup",
   "states": {
-    "schedule": {
-      "invoke": [
-        {
-          "src": "serverlessworkflow.schedule",
-          "input": {
-            "cron": "0 0 * * *"
-          },
-          "onDone": {
-            "target": "backup"
-          }
-        }
-      ]
-    },
     "backup": {
       "invoke": [
         {

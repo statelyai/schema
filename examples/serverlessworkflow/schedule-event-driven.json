@@ -4,27 +4,20 @@
   "version": "0.1.0",
   "profile": "https://serverlessworkflow.io/specification/1.0.3",
   "queryLanguage": "jq",
-  "initial": "schedule",
-  "states": {
-    "schedule": {
-      "invoke": [
-        {
-          "src": "serverlessworkflow.schedule",
-          "input": {
-            "on": {
-              "one": {
-                "with": {
-                  "type": "com.example.hospital.events.patients.heartbeat.low"
-                }
-              }
-            }
-          },
-          "onDone": {
-            "target": "callNurse"
+  "triggers": [
+    {
+      "type": "serverlessworkflow.schedule",
+      "on": {
+        "one": {
+          "with": {
+            "type": "com.example.hospital.events.patients.heartbeat.low"
           }
         }
-      ]
-    },
+      }
+    }
+  ],
+  "initial": "callNurse",
+  "states": {
     "callNurse": {
       "invoke": [
         {
