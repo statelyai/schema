@@ -4,7 +4,7 @@ export const queryLanguageSchema = z
   .string()
   .optional()
   .describe(
-    'The expression language used for evaluating expressions in the machine'
+    'The expression language used for evaluating expressions in the machine',
   );
 
 export const expressionSchema = z

@@ -9,15 +9,13 @@ describe('Serverless Workflow examples', () => {
   test('converted examples validate against the machine schema', () => {
     const examplesDir = join(process.cwd(), 'examples', 'serverlessworkflow');
     const exampleFiles = readdirSync(examplesDir).filter((file) =>
-      file.endsWith('.json')
+      file.endsWith('.json'),
     );
 
     assert.strictEqual(exampleFiles.length, 66);
 
     for (const file of exampleFiles) {
-      const example = JSON.parse(
-        readFileSync(join(examplesDir, file), 'utf8')
-      );
+      const example = JSON.parse(readFileSync(join(examplesDir, file), 'utf8'));
       const result = machineSchema.safeParse(example);
 
       assert.ok(result.success, `${file} should validate`);
@@ -27,18 +25,16 @@ describe('Serverless Workflow examples', () => {
   test('converted examples are not executable by the built-in xstate converter', () => {
     const examplesDir = join(process.cwd(), 'examples', 'serverlessworkflow');
     const exampleFiles = readdirSync(examplesDir).filter((file) =>
-      file.endsWith('.json')
+      file.endsWith('.json'),
     );
 
     for (const file of exampleFiles) {
-      const example = JSON.parse(
-        readFileSync(join(examplesDir, file), 'utf8')
-      );
+      const example = JSON.parse(readFileSync(join(examplesDir, file), 'utf8'));
 
       assert.throws(
         () => convertSpecToConfig(example),
         /only supports machines with no profile or the xstate profile/i,
-        `${file} should be rejected by the built-in xstate converter`
+        `${file} should be rejected by the built-in xstate converter`,
       );
     }
   });

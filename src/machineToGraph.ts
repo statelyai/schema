@@ -13,12 +13,29 @@ import type { StateMachine } from './machineSchema';
 export function machineToGraph(machine: StateMachine): Graph {
   const graph = createGraph({ type: 'directed' });
   const pendingEdges: EdgeConfig[] = [];
+  const globalReferenceTargets = new Map<string, string>();
+
+  function collectGlobalReferences(
+    states: Record<string, any> | undefined,
+    graphPrefix: string,
+    canonicalPrefix: string,
+  ): void {
+    for (const [key, state] of Object.entries(states ?? {})) {
+      const graphId = graphPrefix ? `${graphPrefix}.${key}` : key;
+      const canonicalId = `${canonicalPrefix}.${key}`;
+      globalReferenceTargets.set(canonicalId, graphId);
+      if (state.id) globalReferenceTargets.set(state.id, graphId);
+      collectGlobalReferences(state.states, graphId, canonicalId);
+    }
+  }
+
+  collectGlobalReferences(machine.states, '', machine.key);
 
   // First pass: collect all nodes
   function collectNodes(
     states: Record<string, any> | undefined,
     parentId: string | null,
-    pathPrefix: string
+    pathPrefix: string,
   ) {
     if (!states) return;
 
@@ -49,8 +66,17 @@ export function machineToGraph(machine: StateMachine): Graph {
           for (let i = 0; i < transitions.length; i++) {
             const t = transitions[i];
             const targets = normalizeTargets(t.target);
-            for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
-              const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
+            for (
+              let targetIndex = 0;
+              targetIndex < targets.length;
+              targetIndex++
+            ) {
+              const targetId = resolveTarget(
+                targets[targetIndex],
+                pathPrefix,
+                nodeId,
+                globalReferenceTargets,
+              );
               pendingEdges.push({
                 id: `${nodeId}|${event}|${targetId}|${i}|${targetIndex}`,
                 sourceId: nodeId,
@@ -76,8 +102,17 @@ export function machineToGraph(machine: StateMachine): Graph {
           for (let i = 0; i < transitions.length; i++) {
             const t = transitions[i];
             const targets = normalizeTargets(t.target);
-            for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
-              const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
+            for (
+              let targetIndex = 0;
+              targetIndex < targets.length;
+              targetIndex++
+            ) {
+              const targetId = resolveTarget(
+                targets[targetIndex],
+                pathPrefix,
+                nodeId,
+                globalReferenceTargets,
+              );
               pendingEdges.push({
                 id: `${nodeId}|after:${delay}|${targetId}|${i}|${targetIndex}`,
                 sourceId: nodeId,
@@ -102,8 +137,17 @@ export function machineToGraph(machine: StateMachine): Graph {
         for (let i = 0; i < transitions.length; i++) {
           const t = transitions[i];
           const targets = normalizeTargets(t.target);
-          for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
-            const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
+          for (
+            let targetIndex = 0;
+            targetIndex < targets.length;
+            targetIndex++
+          ) {
+            const targetId = resolveTarget(
+              targets[targetIndex],
+              pathPrefix,
+              nodeId,
+              globalReferenceTargets,
+            );
             pendingEdges.push({
               id: `${nodeId}|always|${targetId}|${i}|${targetIndex}`,
               sourceId: nodeId,
@@ -126,8 +170,17 @@ export function machineToGraph(machine: StateMachine): Graph {
         for (let i = 0; i < transitions.length; i++) {
           const t = transitions[i];
           const targets = normalizeTargets(t.target);
-          for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
-            const targetId = resolveTarget(targets[targetIndex], pathPrefix, nodeId);
+          for (
+            let targetIndex = 0;
+            targetIndex < targets.length;
+            targetIndex++
+          ) {
+            const targetId = resolveTarget(
+              targets[targetIndex],
+              pathPrefix,
+              nodeId,
+              globalReferenceTargets,
+            );
             pendingEdges.push({
               id: `${nodeId}|onDone|${targetId}|${i}|${targetIndex}`,
               sourceId: nodeId,
@@ -161,7 +214,8 @@ export function machineToGraph(machine: StateMachine): Graph {
                   const targetId = resolveTarget(
                     targets[targetIndex],
                     pathPrefix,
-                    nodeId
+                    nodeId,
+                    globalReferenceTargets,
                   );
                   const label = `${inv.src}.${invKey}`;
                   pendingEdges.push({
@@ -210,9 +264,7 @@ export function machineToGraph(machine: StateMachine): Graph {
   return graph;
 }
 
-function normalizeTransitions(
-  transitions: any
-): Array<{
+function normalizeTransitions(transitions: any): Array<{
   target?: string | string[];
   guard?: any;
   description?: string;
@@ -252,9 +304,13 @@ function normalizeTargets(target: string | string[] | undefined): string[] {
 function resolveTarget(
   target: string,
   pathPrefix: string,
-  sourceId: string
+  sourceId: string,
+  globalReferenceTargets: ReadonlyMap<string, string>,
 ): string {
-  if (target.startsWith('#')) return target.slice(1);
+  if (target.startsWith('#')) {
+    const reference = target.slice(1);
+    return globalReferenceTargets.get(reference) ?? reference;
+  }
   if (target.startsWith('.')) return `${sourceId}${target}`;
   if (pathPrefix) return `${pathPrefix}.${target}`;
   return target;

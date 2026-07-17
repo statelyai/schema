@@ -43,8 +43,13 @@ export {
   profileSchema,
   eventDescriptorSchema,
   machineSchema,
+  validateMachine,
 } from './machineSchema';
-export type { StateMachine } from './machineSchema';
+export type {
+  StateMachine,
+  MachineDiagnostic,
+  MachineValidationResult,
+} from './machineSchema';
 export {
   scxmlDataSchema,
   scxmlDatamodelSchema,
@@ -101,8 +106,7 @@ export interface ConvertOptions {
 }
 
 export type XStateConversionSupport =
-  | { supported: true }
-  | { supported: false; reason: string };
+  { supported: true } | { supported: false; reason: string };
 
 function getUnsupportedProfileReason(spec: StateMachine): string | undefined {
   if (spec.profile == null) return;
@@ -113,7 +117,7 @@ function getUnsupportedProfileReason(spec: StateMachine): string | undefined {
 
 function getQueryLanguageSupportReason(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ) {
   if (options?.evaluate) return undefined;
   const lang = options?.queryLanguage ?? spec.queryLanguage;
@@ -129,16 +133,19 @@ function getQueryLanguageSupportReason(
   }
 }
 
-function findUnsupportedInvokeReason(state: any, path: string): string | undefined {
+function findUnsupportedInvokeReason(
+  state: any,
+  path: string,
+): string | undefined {
   if (state.invoke) {
     for (const [index, inv] of state.invoke.entries()) {
       const unsupportedKeys = ['timeout', 'heartbeat', 'retry'].filter(
-        (key) => inv[key] != null
+        (key) => inv[key] != null,
       );
 
       if (unsupportedKeys.length) {
         return `Unsupported invoke semantics for XState conversion at "${path}.invoke[${index}]": ${unsupportedKeys.join(
-          ', '
+          ', ',
         )}. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().`;
       }
     }
@@ -154,9 +161,102 @@ function findUnsupportedInvokeReason(state: any, path: string): string | undefin
   return undefined;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value != null && !Array.isArray(value);
+}
+
+function getActionShapeReason(action: any, path: string): string | undefined {
+  const requireParams = (...keys: string[]) => {
+    if (!isRecord(action.params)) {
+      return `${action.type} at "${path}" requires an object params value containing ${keys
+        .map((key) => `params.${key}`)
+        .join(' and ')}.`;
+    }
+    const missing = keys.filter((key) => action.params[key] == null);
+    if (missing.length) {
+      return `${action.type} at "${path}" requires ${missing
+        .map((key) => `params.${key}`)
+        .join(' and ')}.`;
+    }
+  };
+
+  switch (action.type) {
+    case 'xstate.assign':
+      return requireParams();
+    case 'xstate.raise':
+    case 'xstate.emit':
+      return requireParams('event');
+    case 'xstate.sendTo':
+      return requireParams('actorRef', 'event');
+    case 'xstate.log':
+      if (action.params != null && !isRecord(action.params)) {
+        return `${action.type} at "${path}" requires params to be an object when provided.`;
+      }
+  }
+}
+
+function findUnsupportedActionReason(
+  state: any,
+  path: string,
+): string | undefined {
+  const visitActions = (actions: any, actionPath: string) => {
+    if (!Array.isArray(actions)) return undefined;
+    for (const [index, action] of actions.entries()) {
+      const reason = getActionShapeReason(action, `${actionPath}[${index}]`);
+      if (reason) return reason;
+    }
+  };
+
+  const visitTransitions = (transitions: any, transitionPath: string) => {
+    const values = Array.isArray(transitions) ? transitions : [transitions];
+    for (const [index, transition] of values.entries()) {
+      if (!transition) continue;
+      const reason = visitActions(
+        transition.actions,
+        `${transitionPath}${Array.isArray(transitions) ? `[${index}]` : ''}.actions`,
+      );
+      if (reason) return reason;
+    }
+  };
+
+  for (const key of ['entry', 'exit'] as const) {
+    const reason = visitActions(state[key], `${path}.${key}`);
+    if (reason) return reason;
+  }
+
+  for (const [event, transitions] of Object.entries(state.on ?? {})) {
+    const reason = visitTransitions(transitions, `${path}.on.${event}`);
+    if (reason) return reason;
+  }
+  for (const [delay, transitions] of Object.entries(state.after ?? {})) {
+    const reason = visitTransitions(transitions, `${path}.after.${delay}`);
+    if (reason) return reason;
+  }
+  for (const key of ['always', 'onDone'] as const) {
+    if (state[key] == null) continue;
+    const reason = visitTransitions(state[key], `${path}.${key}`);
+    if (reason) return reason;
+  }
+  for (const [index, invoke] of (state.invoke ?? []).entries()) {
+    for (const key of ['onDone', 'onError', 'onSnapshot'] as const) {
+      if (invoke[key] == null) continue;
+      const reason = visitTransitions(
+        invoke[key],
+        `${path}.invoke[${index}].${key}`,
+      );
+      if (reason) return reason;
+    }
+  }
+
+  for (const [key, child] of Object.entries(state.states ?? {})) {
+    const reason = findUnsupportedActionReason(child, `${path}.${key}`);
+    if (reason) return reason;
+  }
+}
+
 export function getXStateConversionSupport(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ): XStateConversionSupport {
   const profileReason = getUnsupportedProfileReason(spec);
   if (profileReason) {
@@ -166,6 +266,11 @@ export function getXStateConversionSupport(
   const queryLanguageReason = getQueryLanguageSupportReason(spec, options);
   if (typeof queryLanguageReason === 'string') {
     return { supported: false, reason: queryLanguageReason };
+  }
+
+  const actionReason = findUnsupportedActionReason(spec, spec.key);
+  if (actionReason) {
+    return { supported: false, reason: actionReason };
   }
 
   const invokeReason = findUnsupportedInvokeReason(spec, spec.key);
@@ -178,14 +283,14 @@ export function getXStateConversionSupport(
 
 export function canConvertToXState(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ): boolean {
   return getXStateConversionSupport(spec, options).supported;
 }
 
 function assertXStateConversionSupported(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ): void {
   const support = getXStateConversionSupport(spec, options);
   if (!support.supported) {
@@ -195,7 +300,7 @@ function assertXStateConversionSupported(
 
 function resolveEvaluator(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ): ExpressionEvaluator {
   if (options?.evaluate) return options.evaluate;
   const lang = options?.queryLanguage ?? spec.queryLanguage;
@@ -206,18 +311,18 @@ function resolveEvaluator(
       return createJsonpathEvaluator();
     case 'jsonata':
       throw new Error(
-        'The built-in jsonata evaluator is async and cannot be converted directly to an XState machine. Provide a synchronous evaluate() override or use jmespath/jsonpath.'
+        'The built-in jsonata evaluator is async and cannot be converted directly to an XState machine. Provide a synchronous evaluate() override or use jmespath/jsonpath.',
       );
     default:
       throw new Error(
-        `Unknown query language "${lang}". Specify queryLanguage in the spec or options.`
+        `Unknown query language "${lang}". Specify queryLanguage in the spec or options.`,
       );
   }
 }
 
 export function convertSpecToMachine(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ) {
   assertXStateConversionSupported(spec, options);
   return toXStateMachine(spec, resolveEvaluator(spec, options));
@@ -225,7 +330,7 @@ export function convertSpecToMachine(
 
 export function convertSpecToConfig(
   spec: StateMachine,
-  options?: ConvertOptions
+  options?: ConvertOptions,
 ) {
   assertXStateConversionSupported(spec, options);
   return toXStateConfig(spec, resolveEvaluator(spec, options));

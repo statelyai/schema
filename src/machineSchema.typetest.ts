@@ -49,7 +49,6 @@ type Triggers = z.infer<typeof triggersSchema>;
 type Schemas = z.infer<typeof schemasSchema>;
 
 // --- Helpers ---
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function assert<T>(_value: T) {}
 
 // ============================================================
@@ -134,20 +133,29 @@ assert<Transitions>(['a', 'b']);
 // Actions — core.assign plus profile-defined action types
 // ============================================================
 
-assert<AssignAction>({ type: 'core.assign', assignments: { x: 1, y: '{{ event.val }}' } });
+assert<AssignAction>({
+  type: 'core.assign',
+  assignments: { x: 1, y: '{{ event.val }}' },
+});
 assert<AssignAction>({
   type: 'core.assign',
   assignments: { x: 1 },
   params: { source: 'test' },
 });
-assert<RaiseAction>({ type: 'xstate.raise', params: { event: { type: 'DONE' } } });
+assert<RaiseAction>({
+  type: 'xstate.raise',
+  params: { event: { type: 'DONE' } },
+});
 assert<SendToAction>({
   type: 'xstate.sendTo',
   params: { actorRef: 'myActor', event: { type: 'PING' } },
 });
 assert<LogAction>({ type: 'xstate.log' });
 assert<LogAction>({ type: 'xstate.log', params: { message: 'hello' } });
-assert<EmitAction>({ type: 'xstate.emit', params: { event: { type: 'NOTIFY' } } });
+assert<EmitAction>({
+  type: 'xstate.emit',
+  params: { event: { type: 'NOTIFY' } },
+});
 assert<CustomAction>({ type: 'myAction', params: { foo: 'bar' } });
 assert<CustomAction>({ type: 'myAction' });
 

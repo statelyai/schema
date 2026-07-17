@@ -40,6 +40,7 @@ boundary for this profile.
 
 The profile defines these action types:
 
+- `xstate.assign`
 - `xstate.raise`
 - `xstate.sendTo`
 - `xstate.log`
@@ -47,6 +48,21 @@ The profile defines these action types:
 
 `core.assign` remains the standard built-in assignment action and is not redefined
 by this profile.
+
+### `xstate.assign`
+
+Assigns keyed context values using XState's assignment action. `params` is an
+object whose values may be static or expression-based. New documents SHOULD use
+the runtime-agnostic `core.assign`; this form exists for XState compatibility.
+
+```json
+{
+  "type": "xstate.assign",
+  "params": {
+    "count": "{{ context.count + 1 }}"
+  }
+}
+```
 
 ### `xstate.raise`
 

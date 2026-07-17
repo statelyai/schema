@@ -47,7 +47,7 @@ describe('stripDelimiters', () => {
     assert.strictEqual(stripDelimiters('{{bar}}'), 'bar');
     assert.strictEqual(
       stripDelimiters('{{ context.count + 1 }}'),
-      'context.count + 1'
+      'context.count + 1',
     );
   });
 });
@@ -269,8 +269,22 @@ describe('toXStateConfig', () => {
     const transitions = config.states.idle.on.EVENT;
     assert.deepStrictEqual(
       transitions.map((transition: any) => transition.target),
-      ['a', 'b', 'c']
+      ['a', 'b', 'c'],
     );
+  });
+
+  test('preserves transition reenter semantics', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      states: {
+        idle: {
+          on: { RESET: { target: 'idle', reenter: true } },
+        },
+      },
+    };
+
+    const config = toXStateConfig(spec, noop);
+    assert.strictEqual(config.states.idle.on.RESET.reenter, true);
   });
 
   test('converts after (delayed) transitions', () => {
@@ -310,7 +324,10 @@ describe('toXStateConfig', () => {
     assert.ok(config.states.waiting.after[30000]);
     assert.strictEqual(config.states.waiting.after[30000].target, 'timeout');
     assert.ok(config.states.waiting.after[60000]);
-    assert.strictEqual(config.states.waiting.after[60000].target, 'longTimeout');
+    assert.strictEqual(
+      config.states.waiting.after[60000].target,
+      'longTimeout',
+    );
   });
 
   test('converts always transitions', () => {
@@ -468,7 +485,7 @@ describe('toXStateConfig', () => {
     };
     assert.throws(
       () => toXStateConfig(spec, noop),
-      /unsupported invoke semantics.*timeout, heartbeat, retry/i
+      /unsupported invoke semantics.*timeout, heartbeat, retry/i,
     );
   });
 
@@ -550,7 +567,9 @@ describe('toXStateConfig', () => {
           entry: [
             {
               type: 'xstate.emit',
-              params: { event: '{{ { "type": "PROGRESS", "value": context.pct } }}' },
+              params: {
+                event: '{{ { "type": "PROGRESS", "value": context.pct } }}',
+              },
             },
           ],
         },
@@ -626,23 +645,29 @@ describe('jsonata converter', () => {
       context: { count: 5 },
       event: {},
     });
-    assert.ok(result instanceof Promise, 'jsonata v2 evaluate returns a Promise');
+    assert.ok(
+      result instanceof Promise,
+      'jsonata v2 evaluate returns a Promise',
+    );
     assert.strictEqual(await result, 6);
   });
 
   test('jsonata arithmetic expressions', async () => {
     const evaluate = createJsonataEvaluator();
     assert.strictEqual(
-      await evaluate('context.a * context.b', { context: { a: 3, b: 7 }, event: {} }),
-      21
+      await evaluate('context.a * context.b', {
+        context: { a: 3, b: 7 },
+        event: {},
+      }),
+      21,
     );
     assert.strictEqual(
       await evaluate('context.x > 10', { context: { x: 15 }, event: {} }),
-      true
+      true,
     );
     assert.strictEqual(
       await evaluate('context.x > 10', { context: { x: 5 }, event: {} }),
-      false
+      false,
     );
   });
 
@@ -653,7 +678,7 @@ describe('jsonata converter', () => {
         context: {},
         event: { type: 'SET', amount: 42 },
       }),
-      42
+      42,
     );
   });
 
@@ -664,7 +689,7 @@ describe('jsonata converter', () => {
         context: { first: 'John', last: 'Doe' },
         event: {},
       }),
-      'John Doe'
+      'John Doe',
     );
   });
 
@@ -694,8 +719,14 @@ describe('jsonata converter', () => {
       },
     };
 
-    assert.throws(() => convertSpecToConfig(spec), /jsonata evaluator is async/i);
-    assert.throws(() => convertSpecToMachine(spec), /jsonata evaluator is async/i);
+    assert.throws(
+      () => convertSpecToConfig(spec),
+      /jsonata evaluator is async/i,
+    );
+    assert.throws(
+      () => convertSpecToMachine(spec),
+      /jsonata evaluator is async/i,
+    );
   });
 
   test('xstate conversion support helper reports supported machines', () => {
@@ -738,11 +769,11 @@ describe('jsonata converter', () => {
 
     assert.throws(
       () => convertSpecToConfig(spec),
-      /only supports machines with no profile or the xstate profile/i
+      /only supports machines with no profile or the xstate profile/i,
     );
     assert.throws(
       () => convertSpecToMachine(spec),
-      /only supports machines with no profile or the xstate profile/i
+      /only supports machines with no profile or the xstate profile/i,
     );
     assert.deepStrictEqual(getXStateConversionSupport(spec), {
       supported: false,
@@ -776,6 +807,23 @@ describe('jsonata converter', () => {
     assert.strictEqual(canConvertToXState(spec), false);
   });
 
+  test('xstate conversion support rejects malformed built-in actions', () => {
+    const spec = {
+      key: 'machine',
+      profile: 'xstate',
+      queryLanguage: 'jmespath',
+      states: {
+        idle: { entry: [{ type: 'xstate.emit' }] },
+      },
+    } as StateMachine;
+
+    const support = getXStateConversionSupport(spec);
+    assert.strictEqual(support.supported, false);
+    if (!support.supported) {
+      assert.match(support.reason, /xstate\.emit.*params\.event/i);
+    }
+  });
+
   test('xstate conversion support helper respects custom evaluators', () => {
     const spec: StateMachine = {
       key: 'machine',
@@ -785,11 +833,11 @@ describe('jsonata converter', () => {
 
     assert.deepStrictEqual(
       getXStateConversionSupport(spec, { evaluate: () => undefined }),
-      { supported: true }
+      { supported: true },
     );
     assert.strictEqual(
       canConvertToXState(spec, { evaluate: () => undefined }),
-      true
+      true,
     );
   });
 
@@ -822,7 +870,7 @@ describe('jsonata converter', () => {
 
     assert.throws(
       () => transition(machine, state, { type: 'INC' }),
-      /async expression evaluators are not supported/i
+      /async expression evaluators are not supported/i,
     );
   });
 
@@ -917,7 +965,7 @@ describe('jmespath converter', () => {
     const evaluate = createJmespathEvaluator();
     assert.strictEqual(
       evaluate('context.count', { context: { count: 42 }, event: {} }),
-      42
+      42,
     );
   });
 
@@ -963,9 +1011,7 @@ describe('jmespath converter', () => {
             GO: [{ target: 'active', guard: '{{ context.ready }}' }],
             ENABLE: {
               target: 'idle',
-              actions: [
-                { type: 'xstate.assign', params: { ready: true } },
-              ],
+              actions: [{ type: 'xstate.assign', params: { ready: true } }],
             },
           },
         },
@@ -1109,7 +1155,7 @@ describe('jsonpath converter', () => {
     const evaluate = createJsonpathEvaluator();
     assert.strictEqual(
       evaluate('$.context.count', { context: { count: 99 }, event: {} }),
-      99
+      99,
     );
   });
 
@@ -1155,9 +1201,7 @@ describe('jsonpath converter', () => {
             GO: [{ target: 'active', guard: '{{ $.context.enabled }}' }],
             TURN_ON: {
               target: 'idle',
-              actions: [
-                { type: 'xstate.assign', params: { enabled: true } },
-              ],
+              actions: [{ type: 'xstate.assign', params: { enabled: true } }],
             },
           },
         },

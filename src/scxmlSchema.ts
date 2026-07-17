@@ -4,12 +4,7 @@ import { SCXML_PROFILE_SHORT_NAME } from './profiles';
 export const SCXML_NAMESPACE = 'http://www.w3.org/2005/07/scxml';
 
 type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([
@@ -19,7 +14,7 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
     z.string(),
     z.array(jsonValueSchema),
     z.record(z.string(), jsonValueSchema),
-  ])
+  ]),
 );
 
 const expressionSchema = z
@@ -45,7 +40,7 @@ const extensionFieldsSchema = z
 function requireExactlyOne(
   object: Record<string, unknown>,
   keys: string[],
-  ctx: z.RefinementCtx
+  ctx: z.RefinementCtx,
 ) {
   const present = keys.filter((key) => object[key] != null);
 
@@ -60,7 +55,7 @@ function requireExactlyOne(
 function requireAtMostOne(
   object: Record<string, unknown>,
   keys: string[],
-  ctx: z.RefinementCtx
+  ctx: z.RefinementCtx,
 ) {
   const present = keys.filter((key) => object[key] != null);
 
@@ -165,7 +160,7 @@ export const scxmlIfSchema: z.ZodType<{
         get actions() {
           return z.array(scxmlExecutableContentSchema).optional();
         },
-      })
+      }),
     )
     .optional(),
   get else() {
@@ -275,7 +270,7 @@ export const scxmlExecutableContentSchema: z.ZodType<ScxmlExecutableContent> =
       scxmlSendSchema,
       scxmlCancelSchema,
       scxmlCustomActionSchema,
-    ])
+    ]),
   );
 
 export const scxmlTransitionSchema = z.strictObject({
@@ -401,15 +396,14 @@ export const scxmlHistorySchema = z.strictObject({
   extensions: extensionFieldsSchema.optional(),
 });
 
-export const scxmlStateNodeSchema: z.ZodType<ScxmlStateNode> =
-  z.lazy(() =>
-    z.union([
-      scxmlStateSchema,
-      scxmlParallelSchema,
-      scxmlFinalSchema,
-      scxmlHistorySchema,
-    ])
-  );
+export const scxmlStateNodeSchema: z.ZodType<ScxmlStateNode> = z.lazy(() =>
+  z.union([
+    scxmlStateSchema,
+    scxmlParallelSchema,
+    scxmlFinalSchema,
+    scxmlHistorySchema,
+  ]),
+);
 
 export const scxmlDocumentSchema = z.strictObject({
   profile: z.literal(SCXML_PROFILE_SHORT_NAME).optional(),

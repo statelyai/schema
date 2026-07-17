@@ -31,7 +31,7 @@ export const registeredProfiles: RegisteredProfile[] = [
 ];
 
 const registeredProfileNames = new Set(
-  registeredProfiles.map((profile) => profile.shortName)
+  registeredProfiles.map((profile) => profile.shortName),
 );
 
 export function isRegisteredProfileName(value: string): boolean {
@@ -39,16 +39,15 @@ export function isRegisteredProfileName(value: string): boolean {
 }
 
 export function getRegisteredProfile(
-  value: string
+  value: string,
 ): RegisteredProfile | undefined {
   return registeredProfiles.find(
-    (profile) =>
-      profile.shortName === value || profile.canonicalUri === value
+    (profile) => profile.shortName === value || profile.canonicalUri === value,
   );
 }
 
 export function normalizeRegisteredProfile(
-  value: string | undefined
+  value: string | undefined,
 ): string | undefined {
   if (!value) return undefined;
   return getRegisteredProfile(value)?.shortName;
@@ -56,7 +55,7 @@ export function normalizeRegisteredProfile(
 
 export function matchesRegisteredProfile(
   value: string | undefined,
-  shortName: string
+  shortName: string,
 ): boolean {
   return normalizeRegisteredProfile(value) === shortName;
 }

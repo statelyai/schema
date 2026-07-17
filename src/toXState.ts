@@ -14,7 +14,7 @@ import type { StateMachine } from './machineSchema';
  */
 export type ExpressionEvaluator = (
   expression: string,
-  data: { context: any; event: any }
+  data: { context: any; event: any },
 ) => any;
 
 const EXPR_RE = /^\{\{[\s\S]*\}\}$/;
@@ -33,16 +33,14 @@ export function stripDelimiters(expr: string): string {
  */
 export function parseISO8601Duration(value: string): number | string {
   const match = value.match(
-    /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/
+    /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/,
   );
   if (!match) return value; // not ISO — pass through (could be ms string)
   const days = parseInt(match[1] || '0', 10);
   const hours = parseInt(match[2] || '0', 10);
   const minutes = parseInt(match[3] || '0', 10);
   const seconds = parseFloat(match[4] || '0');
-  return (
-    days * 86400000 + hours * 3600000 + minutes * 60000 + seconds * 1000
-  );
+  return days * 86400000 + hours * 3600000 + minutes * 60000 + seconds * 1000;
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -56,13 +54,13 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 function evaluateSync(
   evaluate: ExpressionEvaluator,
   expression: string,
-  data: { context: any; event: any }
+  data: { context: any; event: any },
 ) {
   const result = evaluate(expression, data);
 
   if (isPromiseLike(result)) {
     throw new Error(
-      'Async expression evaluators are not supported by XState conversion. Provide a synchronous evaluator or use a synchronous query language.'
+      'Async expression evaluators are not supported by XState conversion. Provide a synchronous evaluator or use a synchronous query language.',
     );
   }
 
@@ -93,14 +91,14 @@ function sortTransitions(transitions: any[]): any[] {
 
 function assertSupportedInvoke(inv: any) {
   const unsupportedKeys = ['timeout', 'heartbeat', 'retry'].filter(
-    (key) => inv[key] != null
+    (key) => inv[key] != null,
   );
 
   if (unsupportedKeys.length) {
     throw new Error(
       `Unsupported invoke semantics for XState conversion: ${unsupportedKeys.join(
-        ', '
-      )}. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().`
+        ', ',
+      )}. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().`,
     );
   }
 }
@@ -113,7 +111,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       const assignmentSource =
         action.type === 'core.assign' ? action.assignments : action.params;
       for (const [key, value] of Object.entries(
-        (assignmentSource ?? {}) as Record<string, any>
+        (assignmentSource ?? {}) as Record<string, any>,
       )) {
         if (isExpression(value)) {
           const expr = stripDelimiters(value);
@@ -132,7 +130,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       if (isExpression(evt)) {
         const expr = stripDelimiters(evt);
         return raise(({ context, event }: any) =>
-          evaluateSync(evaluate, expr, { context, event })
+          evaluateSync(evaluate, expr, { context, event }),
         );
       }
       return raise(evt);
@@ -141,7 +139,10 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       const { actorRef, event: evt, delay } = action.params;
       const actorArg = isExpression(actorRef)
         ? ({ context, event }: any) =>
-            evaluateSync(evaluate, stripDelimiters(actorRef), { context, event })
+            evaluateSync(evaluate, stripDelimiters(actorRef), {
+              context,
+              event,
+            })
         : actorRef;
       const eventArg = isExpression(evt)
         ? ({ context, event }: any) =>
@@ -160,7 +161,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       return sendTo(
         actorArg,
         eventArg,
-        Object.keys(opts).length ? opts : undefined
+        Object.keys(opts).length ? opts : undefined,
       );
     }
     case 'xstate.log': {
@@ -169,7 +170,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
         if (isExpression(msg)) {
           const expr = stripDelimiters(msg);
           return xstateLog(({ context, event }: any) =>
-            evaluateSync(evaluate, expr, { context, event })
+            evaluateSync(evaluate, expr, { context, event }),
           );
         }
         return xstateLog(msg);
@@ -181,7 +182,7 @@ function convertAction(action: any, evaluate: ExpressionEvaluator): any {
       if (isExpression(evt)) {
         const expr = stripDelimiters(evt);
         return xstateEmit(({ context, event }: any) =>
-          evaluateSync(evaluate, expr, { context, event })
+          evaluateSync(evaluate, expr, { context, event }),
         );
       }
       return xstateEmit(evt);
@@ -207,6 +208,7 @@ function convertTransition(t: any, evaluate: ExpressionEvaluator): any {
   if (t.target != null) result.target = t.target;
   if (t.description) result.description = t.description;
   if (t.guard) result.guard = convertGuard(t.guard, evaluate);
+  if (t.reenter != null) result.reenter = t.reenter;
 
   // Collect explicit actions
   const actions: any[] = t.actions?.length
@@ -216,7 +218,7 @@ function convertTransition(t: any, evaluate: ExpressionEvaluator): any {
   // Append implicit assign from transition `context`
   if (t.context) {
     actions.push(
-      convertAction({ type: 'core.assign', assignments: t.context }, evaluate)
+      convertAction({ type: 'core.assign', assignments: t.context }, evaluate),
     );
   }
 
@@ -229,7 +231,7 @@ function convertTransitions(trans: any, evaluate: ExpressionEvaluator): any {
   if (trans == null) return undefined;
   if (Array.isArray(trans))
     return sortTransitions(trans).map((t: any) =>
-      convertTransition(t, evaluate)
+      convertTransition(t, evaluate),
     );
   return convertTransition(trans, evaluate);
 }
@@ -325,7 +327,7 @@ function convertState(state: any, evaluate: ExpressionEvaluator): any {
  */
 export function toXStateConfig(
   spec: StateMachine,
-  evaluate: ExpressionEvaluator
+  evaluate: ExpressionEvaluator,
 ) {
   const config = convertState(spec, evaluate);
   if (spec.context) config.context = spec.context;
@@ -339,7 +341,7 @@ export function toXStateConfig(
  */
 export function toXStateMachine(
   spec: StateMachine,
-  evaluate: ExpressionEvaluator
+  evaluate: ExpressionEvaluator,
 ) {
   return createMachine(toXStateConfig(spec, evaluate));
 }

@@ -78,7 +78,7 @@ describe('machineToGraph', () => {
     const graph = machineToGraph(spec);
     assert.deepStrictEqual(
       graph.edges.map((edge) => edge.targetId),
-      ['b', 'c']
+      ['b', 'c'],
     );
   });
 
@@ -102,7 +102,7 @@ describe('machineToGraph', () => {
     const graph = machineToGraph(spec);
     assert.deepStrictEqual(
       graph.edges.map((edge) => edge.targetId),
-      ['b', 'c']
+      ['b', 'c'],
     );
   });
 
@@ -246,7 +246,32 @@ describe('machineToGraph', () => {
       [
         'parent.source.sibling.grandchild',
         'parent.source.idle.child.grandchild',
-      ]
+      ],
+    );
+  });
+
+  test('resolves canonical path and explicit ID references', () => {
+    const graph = machineToGraph({
+      key: 'machine',
+      initial: 'a',
+      states: {
+        a: {
+          id: 'alias',
+          on: {
+            BY_PATH: { target: '#machine.b' },
+            BY_ALIAS: { target: '#alias' },
+          },
+        },
+        b: {},
+      },
+    });
+
+    assert.deepStrictEqual(
+      graph.edges.map((edge) => [edge.label, edge.targetId]),
+      [
+        ['BY_PATH', 'b'],
+        ['BY_ALIAS', 'a'],
+      ],
     );
   });
 

@@ -19,8 +19,8 @@ describe('profiles', () => {
     assert.ok(isRegisteredProfileName(XSTATE_PROFILE_SHORT_NAME));
     assert.ok(
       registeredProfiles.some(
-        (profile) => profile.shortName === XSTATE_PROFILE_SHORT_NAME
-      )
+        (profile) => profile.shortName === XSTATE_PROFILE_SHORT_NAME,
+      ),
     );
   });
 
@@ -29,8 +29,8 @@ describe('profiles', () => {
     assert.ok(
       registeredProfiles.some(
         (profile) =>
-          profile.shortName === SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
-      )
+          profile.shortName === SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
+      ),
     );
   });
 
@@ -38,8 +38,8 @@ describe('profiles', () => {
     assert.ok(isRegisteredProfileName(SCXML_PROFILE_SHORT_NAME));
     assert.ok(
       registeredProfiles.some(
-        (profile) => profile.shortName === SCXML_PROFILE_SHORT_NAME
-      )
+        (profile) => profile.shortName === SCXML_PROFILE_SHORT_NAME,
+      ),
     );
   });
 
@@ -50,38 +50,38 @@ describe('profiles', () => {
   test('registered profiles can be resolved by short name or canonical URI', () => {
     assert.strictEqual(
       getRegisteredProfile(XSTATE_PROFILE_SHORT_NAME)?.shortName,
-      XSTATE_PROFILE_SHORT_NAME
+      XSTATE_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(
       getRegisteredProfile(XSTATE_PROFILE_URI)?.shortName,
-      XSTATE_PROFILE_SHORT_NAME
+      XSTATE_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(
       getRegisteredProfile(SERVERLESSWORKFLOW_PROFILE_URI)?.shortName,
-      SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
+      SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(
       getRegisteredProfile(SCXML_PROFILE_URI)?.shortName,
-      SCXML_PROFILE_SHORT_NAME
+      SCXML_PROFILE_SHORT_NAME,
     );
   });
 
   test('registered profiles can be normalized to their short names', () => {
     assert.strictEqual(
       normalizeRegisteredProfile(XSTATE_PROFILE_SHORT_NAME),
-      XSTATE_PROFILE_SHORT_NAME
+      XSTATE_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(
       normalizeRegisteredProfile(XSTATE_PROFILE_URI),
-      XSTATE_PROFILE_SHORT_NAME
+      XSTATE_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(
       normalizeRegisteredProfile(SERVERLESSWORKFLOW_PROFILE_URI),
-      SERVERLESSWORKFLOW_PROFILE_SHORT_NAME
+      SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(
       normalizeRegisteredProfile(SCXML_PROFILE_URI),
-      SCXML_PROFILE_SHORT_NAME
+      SCXML_PROFILE_SHORT_NAME,
     );
     assert.strictEqual(normalizeRegisteredProfile('fake'), undefined);
     assert.strictEqual(normalizeRegisteredProfile(undefined), undefined);
@@ -91,17 +91,17 @@ describe('profiles', () => {
     assert.ok(
       matchesRegisteredProfile(
         XSTATE_PROFILE_SHORT_NAME,
-        XSTATE_PROFILE_SHORT_NAME
-      )
+        XSTATE_PROFILE_SHORT_NAME,
+      ),
     );
     assert.ok(
-      matchesRegisteredProfile(XSTATE_PROFILE_URI, XSTATE_PROFILE_SHORT_NAME)
+      matchesRegisteredProfile(XSTATE_PROFILE_URI, XSTATE_PROFILE_SHORT_NAME),
     );
     assert.ok(
       !matchesRegisteredProfile(
         SERVERLESSWORKFLOW_PROFILE_SHORT_NAME,
-        XSTATE_PROFILE_SHORT_NAME
-      )
+        XSTATE_PROFILE_SHORT_NAME,
+      ),
     );
   });
 });

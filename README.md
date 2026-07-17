@@ -13,7 +13,6 @@ npm install @statelyai/schema
 ```json
 {
   "key": "order",
-  "id": "order",
   "version": "1.0.0",
   "queryLanguage": "jmespath",
   "initial": "pending",
@@ -55,6 +54,14 @@ Values wrapped in `{{ }}` are evaluated at runtime using the configured `queryLa
 | `jsonata` | [jsonata](https://www.npmjs.com/package/jsonata) | No (async) | `{{ context.count + 1 }}` |
 
 Expressions receive `{ context, event }` as their data root.
+
+Evaluator factories are available as explicit package entrypoints:
+
+```ts
+import { createJmespathEvaluator } from '@statelyai/schema/jmespath';
+import { createJsonataEvaluator } from '@statelyai/schema/jsonata';
+import { createJsonpathEvaluator } from '@statelyai/schema/jsonpath';
+```
 
 The built-in `convertSpecToMachine()` and `convertSpecToConfig()` helpers require synchronous evaluation because they target XState's synchronous guards/actions. That means the built-in `jsonata` evaluator is not supported there; use `jmespath`, `jsonpath`, or pass a custom synchronous `evaluate` implementation.
 
@@ -111,6 +118,8 @@ const machine = convertSpecToMachine(spec, { evaluate });
 
 ## Schema validation
 
+<!-- validation exports from src/index.ts and src/machineSchema.ts -->
+
 Zod schemas for runtime validation (requires `zod` peer dependency):
 
 ```ts
@@ -119,12 +128,27 @@ import { machineSchema } from '@statelyai/schema';
 const result = machineSchema.safeParse(json);
 ```
 
+Use `validateMachine()` for the same structural validation plus conformance
+warnings:
+
+```ts
+import { validateMachine } from '@statelyai/schema';
+
+const result = validateMachine(json);
+if (!result.success) console.error(result.errors);
+else console.warn(result.warnings);
+```
+
 JSON Schema files are also available for editor tooling:
 
 ```ts
 import machineJsonSchema from '@statelyai/schema/machine.json';
 import scxmlJsonSchema from '@statelyai/schema/scxml.json';
 ```
+
+JSON Schema captures portable structural constraints. Cross-node constraints,
+including globally unique explicit IDs and canonical-path collisions, require
+`machineSchema` or `validateMachine()`.
 
 ## Specification
 
@@ -330,6 +354,19 @@ Keys can be millisecond strings or ISO 8601 durations. The converter parses ISO 
   }
 }
 ```
+
+## Development
+
+<!-- verification scripts from package.json -->
+
+```bash
+pnpm install
+pnpm verify
+pnpm build
+```
+
+`pnpm verify` runs typechecking, linting, formatting checks, tests, and generated
+schema drift detection.
 
 ## License
 

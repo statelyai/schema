@@ -1,16 +1,26 @@
 {
   "name": "@statelyai/schema",
   "version": "0.1.0",
+  "type": "module",
   "description": "The Stately JSON specification for statecharts and workflows",
+  "packageManager": "pnpm@10.32.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statelyai/schema.git"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "scripts": {
     "test": "tsx --test",
     "typecheck": "tsc --noEmit",
-    "build": "tsdown && npm run generate-schema",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier --check .",
+    "build": "tsdown && tsx src/generate-schema.ts",
     "generate-schema": "tsx src/generate-schema.ts",
-    "prepublish": "npm run build"
+    "verify:generated": "tsx src/verify-generated.ts",
+    "verify": "tsc --noEmit && eslint . --max-warnings 0 && prettier --check . && tsx --test && tsx src/verify-generated.ts",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "stately",
@@ -25,35 +35,31 @@
   "author": "david@stately.ai",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/jmespath": "^0.15.2",
     "@types/node": "^22.0.0",
-    "jmespath": "^0.16.0",
+    "eslint": "^10.7.0",
     "jsonata": "^2.1.0",
-    "jsonpath-plus": "^10.4.0",
+    "prettier": "^3.9.5",
     "tsdown": "^0.21.2",
     "tsx": "^4.7.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.64.0"
   },
   "peerDependencies": {
-    "jmespath": ">=0.16.0",
     "jsonata": ">=2.0.0",
-    "jsonpath-plus": ">=7.0.0",
     "zod": ">=4.0.0"
   },
   "peerDependenciesMeta": {
     "jsonata": {
       "optional": true
-    },
-    "jmespath": {
-      "optional": true
-    },
-    "jsonpath-plus": {
-      "optional": true
     }
   },
   "files": [
     "dist",
-    "schemas"
+    "schemas",
+    "profiles",
+    "spec.md"
   ],
   "exports": {
     ".": {
@@ -61,11 +67,31 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
+    "./jmespath": {
+      "types": "./dist/jmespath.d.mts",
+      "import": "./dist/jmespath.mjs",
+      "require": "./dist/jmespath.cjs"
+    },
+    "./jsonata": {
+      "types": "./dist/jsonata.d.mts",
+      "import": "./dist/jsonata.mjs",
+      "require": "./dist/jsonata.cjs"
+    },
+    "./jsonpath": {
+      "types": "./dist/jsonpath.d.mts",
+      "import": "./dist/jsonpath.mjs",
+      "require": "./dist/jsonpath.cjs"
+    },
     "./machine.json": "./schemas/machine.json",
     "./scxml.json": "./schemas/scxml.json"
   },
   "dependencies": {
     "@statelyai/graph": "^0.8.0",
+    "jmespath": "^0.16.0",
+    "jsonpath-plus": "^10.4.0",
     "xstate": "^5.28.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

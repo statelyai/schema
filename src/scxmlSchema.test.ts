@@ -91,13 +91,13 @@ describe('scxmlSchema', () => {
         kind: 'send',
         event: 'PING',
         eventexpr: 'dynamicEvent',
-      })
+      }),
     );
 
     assert.throws(() =>
       scxmlCancelSchema.parse({
         kind: 'cancel',
-      })
+      }),
     );
 
     assert.throws(() =>
@@ -106,7 +106,7 @@ describe('scxmlSchema', () => {
         name: 'payload',
         expr: 'payload',
         location: 'payload',
-      })
+      }),
     );
   });
 
@@ -132,11 +132,11 @@ describe('scxmlSchema', () => {
   test('registers the SCXML profile', () => {
     assert.strictEqual(
       normalizeRegisteredProfile('https://www.w3.org/TR/scxml/'),
-      'scxml'
+      'scxml',
     );
     assert.strictEqual(
       getRegisteredProfile('scxml')?.docsPath,
-      './profiles/scxml.md'
+      './profiles/scxml.md',
     );
   });
 });

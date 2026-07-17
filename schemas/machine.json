@@ -4,7 +4,8 @@
   "properties": {
     "id": {
       "description": "The state node ID",
-      "type": "string"
+      "type": "string",
+      "pattern": "^(?!#)"
     },
     "description": {
       "description": "The text description of this state node",
@@ -61,7 +62,8 @@
       "description": "The transitions",
       "type": "object",
       "propertyNames": {
-        "type": "string"
+        "type": "string",
+        "pattern": "^(?:\\*|[^*]+|[^.*]+(?:\\.[^.*]+)*\\.\\*)$"
       },
       "additionalProperties": {
         "anyOf": [
@@ -169,7 +171,8 @@
     "key": {
       "description": "The root machine key used as the canonical path root",
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^(?!#)(?!.*\\.).+$"
     },
     "version": {
       "description": "The machine version",
@@ -177,7 +180,20 @@
     },
     "profile": {
       "description": "Execution profile short name or URI",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "xstate",
+            "serverlessworkflow",
+            "scxml"
+          ]
+        },
+        {
+          "type": "string",
+          "format": "uri"
+        }
+      ]
     },
     "queryLanguage": {
       "description": "The expression language used for evaluating expressions in the machine",
@@ -580,7 +596,8 @@
       "properties": {
         "id": {
           "description": "The state node ID",
-          "type": "string"
+          "type": "string",
+          "pattern": "^(?!#)"
         },
         "description": {
           "description": "The text description of this state node",
@@ -637,7 +654,8 @@
           "description": "The transitions",
           "type": "object",
           "propertyNames": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^(?:\\*|[^*]+|[^.*]+(?:\\.[^.*]+)*\\.\\*)$"
           },
           "additionalProperties": {
             "anyOf": [

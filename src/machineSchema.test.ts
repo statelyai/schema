@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { machineSchema } from './machineSchema';
+import { machineSchema, validateMachine } from './machineSchema';
 
 function parseMachine(machine: Record<string, unknown>) {
   return machineSchema.parse({ key: 'machine', ...machine });
@@ -33,7 +33,7 @@ describe('machineSchema', () => {
         initial: 'idle',
         states: { idle: {} },
         bogus: true,
-      })
+      }),
     );
   });
 
@@ -51,6 +51,40 @@ describe('machineSchema', () => {
     assert.throws(() => machineSchema.parse({ key: 'foo.bar' }));
     assert.throws(() => machineSchema.parse({ key: '#foo' }));
     machineSchema.parse({ key: 'foo' });
+  });
+
+  test('rejects duplicate explicit IDs and canonical path collisions', () => {
+    assert.throws(() =>
+      parseMachine({ states: { a: { id: 'shared' }, b: { id: 'shared' } } }),
+    );
+    assert.throws(() => parseMachine({ id: 'machine' }));
+    assert.throws(() =>
+      parseMachine({ states: { a: { id: 'machine.b' }, b: {} } }),
+    );
+  });
+
+  test('reports conformance warnings separately from errors', () => {
+    const result = validateMachine({
+      key: 'machine',
+      initial: 'parallel',
+      states: {
+        parallel: {
+          type: 'parallel',
+          initial: 'a',
+          states: { a: {} },
+        },
+        done: {
+          type: 'final',
+          on: { RESET: { target: 'parallel' } },
+        },
+      },
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(
+      result.warnings.map((warning) => warning.code),
+      ['parallel.initial', 'final.transitions'],
+    );
   });
 
   // --- Context ---
@@ -72,13 +106,13 @@ describe('machineSchema', () => {
     assert.throws(() =>
       parseMachine({
         triggers: [{ path: '/api/orders' }],
-      })
+      }),
     );
 
     assert.throws(() =>
       parseMachine({
         triggers: [{ type: 'webhook', handler: () => undefined }],
-      })
+      }),
     );
   });
 
@@ -86,12 +120,12 @@ describe('machineSchema', () => {
     assert.throws(() =>
       parseMachine({
         context: { fn: () => undefined },
-      })
+      }),
     );
     assert.throws(() =>
       parseMachine({
         context: { infinite: Number.POSITIVE_INFINITY },
-      })
+      }),
     );
     assert.throws(() =>
       parseMachine({
@@ -100,7 +134,7 @@ describe('machineSchema', () => {
             entry: [{ type: 'custom', params: () => undefined }],
           },
         },
-      })
+      }),
     );
   });
 
@@ -137,7 +171,7 @@ describe('machineSchema', () => {
             '*': {},
           },
         },
-      })
+      }),
     );
     assert.throws(() =>
       parseMachine({
@@ -146,7 +180,7 @@ describe('machineSchema', () => {
             'feedback.*': {},
           },
         },
-      })
+      }),
     );
   });
 
@@ -171,7 +205,7 @@ describe('machineSchema', () => {
         input: {
           type: 'object',
         },
-      })
+      }),
     );
   });
 
@@ -275,7 +309,7 @@ describe('machineSchema', () => {
           },
           done: { type: 'final' },
         },
-      })
+      }),
     );
   });
 
@@ -307,7 +341,7 @@ describe('machineSchema', () => {
           },
           b: {},
         },
-      })
+      }),
     );
   });
 
@@ -342,7 +376,7 @@ describe('machineSchema', () => {
       parseMachine({
         initial: 'missing',
         states: { idle: {} },
-      })
+      }),
     );
     assert.throws(() =>
       parseMachine({
@@ -353,7 +387,7 @@ describe('machineSchema', () => {
             states: { child: {} },
           },
         },
-      })
+      }),
     );
   });
 
@@ -446,7 +480,7 @@ describe('machineSchema', () => {
         states: {
           a: { on: { 'feedback.*.bad': {} } },
         },
-      })
+      }),
     );
     assert.throws(() =>
       parseMachine({
@@ -454,7 +488,7 @@ describe('machineSchema', () => {
         states: {
           a: { on: { 'feedback*': {} } },
         },
-      })
+      }),
     );
   });
 
@@ -489,7 +523,7 @@ describe('machineSchema', () => {
             entry: [{ type: 'core.assign' }],
           },
         },
-      })
+      }),
     );
     assert.throws(() =>
       parseMachine({
@@ -499,7 +533,7 @@ describe('machineSchema', () => {
             entry: [{ type: 'core.assign', assignments: [] }],
           },
         },
-      })
+      }),
     );
   });
 
@@ -531,7 +565,7 @@ describe('machineSchema', () => {
             ],
           },
         },
-      })
+      }),
     );
   });
 
@@ -571,7 +605,10 @@ describe('machineSchema', () => {
       states: {
         a: {
           entry: [
-            { type: 'xstate.log', params: { message: '{{ "count: " & $context.count }}' } },
+            {
+              type: 'xstate.log',
+              params: { message: '{{ "count: " & $context.count }}' },
+            },
             { type: 'xstate.log' },
           ],
         },
@@ -591,7 +628,10 @@ describe('machineSchema', () => {
             },
             {
               type: 'xstate.emit',
-              params: { event: '{{ { "type": "PROGRESS", "value": context.progress } }}' },
+              params: {
+                event:
+                  '{{ { "type": "PROGRESS", "value": context.progress } }}',
+              },
             },
           ],
         },
@@ -604,9 +644,7 @@ describe('machineSchema', () => {
       initial: 'a',
       states: {
         a: {
-          entry: [
-            { type: 'myCustomAction', params: { foo: 'bar' } },
-          ],
+          entry: [{ type: 'myCustomAction', params: { foo: 'bar' } }],
         },
       },
     });
@@ -784,7 +822,7 @@ describe('machineSchema', () => {
             ],
           },
         },
-      })
+      }),
     );
   });
 
