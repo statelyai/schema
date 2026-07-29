@@ -7,166 +7,107 @@ This document defines the `xstate` profile for the Stately Machine Specification
 - Short name: `xstate`
 - Canonical URI: `https://stately.ai/specifications/xstate`
 
-## Purpose
+## Purpose and version boundary
 
-The `xstate` profile defines action and invoke semantics intended for conversion to
-and execution by [XState](https://stately.ai/docs/xstate).
+The profile maps the runtime-neutral specification to XState v6's serializable
+`MachineJSON` dialect. `convertSpecToConfig()` produces that dialect,
+`fromXStateConfig()` converts its representable subset back, and
+`convertSpecToMachine()` executes it through XState's
+`createMachineFromConfig()`.
 
-The core specification still applies. This profile only defines meanings for
-profile-scoped action types and invoke sources.
+The package currently pins XState `6.0.0-alpha.25`. Alpha upgrades are explicit
+compatibility changes. The core specification remains runtime-neutral and does
+not adopt XState's `@expr`, `@code`, built-in action, source registry, choice, or
+route execution semantics.
 
-The root-level `triggers` field is also preserved when converting a machine to an
-XState config object. XState-oriented runtimes MAY use those trigger objects as
-metadata, but this profile does not define their execution semantics.
+Machines with no declared profile and machines using either XState profile
+identifier are accepted. Other declared profiles are rejected by the XState
+conversion helpers.
 
-## Support Boundary
+## Expressions
 
-This repository currently provides built-in XState-oriented support through
-`convertSpecToConfig()`, `convertSpecToMachine()`, and the XState support helper
-APIs.
+Specification expressions become XState expression objects:
 
-That built-in support currently means:
+```json
+{ "@expr": "context.count + 1", "@lang": "jmespath" }
+```
 
-- machines with no declared profile are accepted
-- machines declaring the `xstate` profile are accepted by short name or canonical URI
-- built-in query language support is limited to synchronous evaluators such as `jmespath` and `jsonpath`
-- `jsonata` requires a caller-provided synchronous `evaluate` function
-- invoke-level `timeout`, `heartbeat`, and `retry` semantics are rejected by the built-in converter
-
-The converter and support helpers are the repository's executable support
-boundary for this profile.
+The root `queryLanguage` becomes `@exprLang`. `convertSpecToMachine()` installs
+the selected evaluator into XState's evaluator sources. Evaluation must be
+synchronous. The reverse adapter restores `@expr` values to `{{ }}` strings and
+rejects `@code`, which is executable JavaScript rather than portable data.
 
 ## Actions
 
-The profile defines these action types:
+New XState-profile documents SHOULD use the canonical v6 MachineJSON built-ins:
 
-- `xstate.assign`
-- `xstate.raise`
-- `xstate.sendTo`
-- `xstate.log`
-- `xstate.emit`
+- `@xstate.assign` with `context`
+- `@xstate.raise` with `event` and optional `id`/`delay`
+- `@xstate.cancel` with `id`
+- `@xstate.log` with `args`
+- `@xstate.emit` with `event`
 
-`core.assign` remains the standard built-in assignment action and is not redefined
-by this profile.
+```json
+{ "type": "@xstate.assign", "context": { "count": "{{ context.count + 1 }}" } }
+```
 
-### `xstate.assign`
+`core.assign` maps to `@xstate.assign`. For compatibility, the converter also
+maps legacy `xstate.assign`, `xstate.raise`, `xstate.log`, and `xstate.emit`
+objects to their canonical v6 forms.
 
-Assigns keyed context values using XState's assignment action. `params` is an
-object whose values may be static or expression-based. New documents SHOULD use
-the runtime-agnostic `core.assign`; this form exists for XState compatibility.
+Legacy `xstate.sendTo` has no declarative v6 MachineJSON equivalent and is
+rejected. Model it as a named custom action and provide its implementation via
+`ConvertOptions.sources.actions`.
+
+Named action definitions may be declared in the root `actions` map. Named
+runtime implementations are supplied through `ConvertOptions.sources`.
+
+## Guards
+
+Named guards retain XState's `{ "type": string, "params"?: value }` shape.
+Declarative guard definitions may be placed in the root `guards` map:
 
 ```json
 {
-  "type": "xstate.assign",
-  "params": {
-    "count": "{{ context.count + 1 }}"
+  "guards": {
+    "isReady": { "when": "{{ context.ready }}" }
   }
 }
 ```
 
-### `xstate.raise`
+Runtime guard implementations are supplied through
+`ConvertOptions.sources.guards`.
 
-Raises an event back into the current machine.
+## State and transition semantics
 
-```json
-{
-  "type": "xstate.raise",
-  "params": {
-    "event": { "type": "DONE" }
-  }
-}
-```
+The adapter maps these v6 MachineJSON features directly:
 
-`params.event` MAY be a static event object or an expression that evaluates to an
-event object.
+- choice states and ordered `choice` branches
+- state-level `onError`
+- state and invoke `timeout`/`onTimeout`
+- `route`
+- transition `matches` and `input`
+- state `input`
+- invoke `registryKey`
+- root `actions`, `guards`, `actors`, and `delays` maps
 
-### `xstate.sendTo`
-
-Sends an event to another actor.
-
-```json
-{
-  "type": "xstate.sendTo",
-  "params": {
-    "actorRef": "worker",
-    "event": { "type": "PING" },
-    "delay": 1000
-  }
-}
-```
-
-- `actorRef` identifies the target actor
-- `event` is the event to send
-- `delay`, when present, is a delay value supported by the target runtime
-
-### `xstate.log`
-
-Logs a message.
-
-```json
-{
-  "type": "xstate.log",
-  "params": {
-    "message": "hello"
-  }
-}
-```
-
-`params.message` MAY be static or expression-based. `params` MAY be omitted.
-
-### `xstate.emit`
-
-Emits an external event.
-
-```json
-{
-  "type": "xstate.emit",
-  "params": {
-    "event": { "type": "NOTIFY" }
-  }
-}
-```
-
-`params.event` MAY be static or expression-based.
-
-## Named Guards
-
-Named guards are passed through using:
-
-```json
-{
-  "type": "guardName",
-  "params": { "threshold": 5 },
-  "config": { "strict": true }
-}
-```
-
-The XState profile does not reserve specific named guard types. Implementations
-typically resolve them through XState `setup({ guards })`. Because named guard
-objects are open-shaped, implementations MAY also use additional JSON-valued
-fields beyond `params`.
+`timeout` requires `onTimeout`. Choice states require `choice`; an unguarded
+fallback branch must be last.
 
 ## Invokes
 
-`Invoke.src` is interpreted as an XState actor source identifier.
+`Invoke.src` names an XState actor source. Runtime actor implementations are
+supplied through `ConvertOptions.sources.actors`.
 
-```json
-{
-  "src": "fetchUser"
-}
-```
+XState v6 supports invocation `input`, `onDone`, `onError`, `onSnapshot`,
+`timeout`, and `onTimeout`. The generic specification's workflow-level
+`heartbeat` and declarative `retry` fields have no XState v6 equivalent and fail
+explicitly instead of being ignored.
 
-The profile does not currently define standard extra invoke fields. Because the
-core invoke shape is open, implementations MAY accept additional JSON-valued
-invoke fields and pass them through to the underlying runtime.
+## Round-trip boundary
 
-## Conversion Notes
-
-This repository's XState converter:
-
-- supports `core.assign`
-- supports the action types listed above
-- passes named guards through
-- passes `src` through for invokes
-- rejects `timeout`, `heartbeat`, and `retry` invoke semantics because they
-  require a runtime wrapper that is not implemented by the converter
+MachineJSON generated by this adapter round-trips through
+`fromXStateConfig()` and back byte-stably for the representable subset. The
+reverse conversion rejects `@code` and other executable-only values. Profile
+extensions such as root `triggers` are preserved as metadata but are not
+executed by XState.

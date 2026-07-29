@@ -199,14 +199,11 @@ describe('machineSchema', () => {
     });
   });
 
-  test('top-level input is rejected', () => {
-    assert.throws(() =>
-      parseMachine({
-        input: {
-          type: 'object',
-        },
-      }),
-    );
+  test('state input is distinct from its input schema', () => {
+    parseMachine({
+      input: { orderId: '{{ event.orderId }}' },
+      schemas: { input: { type: 'object' } },
+    });
   });
 
   // --- Profiles ---
@@ -661,6 +658,28 @@ describe('machineSchema', () => {
     });
   });
 
+  test('canonical XState v6 built-in actions', () => {
+    parseMachine({
+      states: {
+        active: {
+          entry: [
+            { type: '@xstate.assign', context: { count: 1 } },
+            { type: '@xstate.raise', event: { type: 'NEXT' } },
+            { type: '@xstate.cancel', id: 'pending' },
+            { type: '@xstate.log', args: ['hello'] },
+            { type: '@xstate.emit', event: { type: 'NOTICE' } },
+          ],
+        },
+      },
+    });
+
+    assert.throws(() =>
+      parseMachine({
+        states: { active: { entry: [{ type: '@xstate.cancel' }] } },
+      }),
+    );
+  });
+
   // --- Tags ---
 
   test('state tags', () => {
@@ -716,6 +735,7 @@ describe('machineSchema', () => {
               src: 'processOrder',
               input: '{{ { "orderId": $context.orderId } }}',
               timeout: 'PT30S',
+              onTimeout: { target: 'failed' },
               heartbeat: 'PT5S',
               onDone: { target: 'done' },
               onError: [
@@ -878,6 +898,70 @@ describe('machineSchema', () => {
     });
   });
 
+  test('XState v6 state and transition capabilities', () => {
+    parseMachine({
+      actions: {
+        notify: { type: '@xstate.emit', event: { type: 'NOTICE' } },
+      },
+      guards: {
+        canRoute: { when: '{{ context.ready }}' },
+      },
+      actors: { worker: { type: 'remote' } },
+      delays: { short: 100, dynamic: { duration: '{{ context.delay }}' } },
+      initial: 'routing',
+      states: {
+        routing: {
+          type: 'choice',
+          input: { source: '{{ event.source }}' },
+          choice: [
+            {
+              when: '{{ context.ready }}',
+              target: 'working',
+              input: { mode: 'fast' },
+            },
+            { target: 'failed' },
+          ],
+        },
+        working: {
+          timeout: 'PT30S',
+          onTimeout: { target: 'failed' },
+          onError: { target: 'failed' },
+          route: { guard: 'canRoute', input: { mode: 'fast' } },
+          on: {
+            RESULT: {
+              target: 'done',
+              matches: { status: 'ok' },
+              input: '{{ event.output }}',
+            },
+          },
+        },
+        done: { type: 'final' },
+        failed: { type: 'final' },
+      },
+    });
+  });
+
+  test('timeout pairs and choice fallback ordering are enforced', () => {
+    assert.throws(() =>
+      parseMachine({ states: { waiting: { timeout: 100 } } }),
+    );
+    assert.throws(() =>
+      parseMachine({
+        states: {
+          choose: {
+            type: 'choice',
+            choice: [
+              { target: 'a' },
+              { when: '{{ context.ok }}', target: 'b' },
+            ],
+          },
+          a: {},
+          b: {},
+        },
+      }),
+    );
+  });
+
   // --- Full integration ---
 
   test('full order flow machine', () => {
@@ -939,6 +1023,7 @@ describe('machineSchema', () => {
               input:
                 "{{ { 'orderId': $context.orderId, 'items': $context.items } }}",
               timeout: 'PT30S',
+              onTimeout: { target: 'failed' },
               retry: { maxAttempts: 3, interval: 'PT2S', backoff: 2 },
               onDone: {
                 target: 'complete',

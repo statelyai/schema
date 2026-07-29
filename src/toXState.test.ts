@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
-import { transition, initialTransition } from 'xstate';
+import { transition, initialTransition, serializeMachine } from 'xstate';
 import {
   toXStateConfig,
   toXStateMachine,
@@ -9,12 +9,13 @@ import {
   parseISO8601Duration,
 } from './toXState';
 import type { ExpressionEvaluator } from './toXState';
-import type { StateMachine } from './machineSchema';
+import { machineSchema, type StateMachine } from './machineSchema';
 import {
   convertSpecToMachine,
   convertSpecToConfig,
   getXStateConversionSupport,
   canConvertToXState,
+  fromXStateConfig,
 } from './index';
 import { createJsonataEvaluator } from './jsonata';
 import { createJmespathEvaluator } from './jmespath';
@@ -242,7 +243,10 @@ describe('toXStateConfig', () => {
     assert.ok(Array.isArray(transitions));
     assert.strictEqual(transitions.length, 2);
     assert.strictEqual(transitions[0].target, 'a');
-    assert.strictEqual(typeof transitions[0].guard, 'function');
+    assert.deepStrictEqual(transitions[0].guard, {
+      '@expr': 'context.ready',
+      '@lang': 'jsonata',
+    });
     assert.strictEqual(transitions[1].target, 'b');
   });
 
@@ -343,7 +347,10 @@ describe('toXStateConfig', () => {
     };
     const config = toXStateConfig(spec, noop);
     assert.ok(config.states.check.always);
-    assert.strictEqual(typeof config.states.check.always.guard, 'function');
+    assert.deepStrictEqual(config.states.check.always.guard, {
+      '@expr': 'context.ready',
+      '@lang': 'jsonata',
+    });
   });
 
   test('converts state onDone transitions', () => {
@@ -362,7 +369,10 @@ describe('toXStateConfig', () => {
       },
     };
     const config = toXStateConfig(spec, noop);
-    assert.strictEqual(config.states.parent.onDone.target, 'done');
+    assert.deepStrictEqual(config.states.parent.on['xstate.done.state'], {
+      target: 'done',
+      matches: { stateId: 'machine.parent' },
+    });
   });
 
   test('converts named guard', () => {
@@ -464,7 +474,7 @@ describe('toXStateConfig', () => {
     });
   });
 
-  test('rejects unsupported invoke timeout/heartbeat/retry semantics', () => {
+  test('supports timeout and rejects heartbeat/retry semantics', () => {
     const spec: StateMachine = {
       key: 'machine',
       queryLanguage: 'jsonata',
@@ -474,6 +484,7 @@ describe('toXStateConfig', () => {
             {
               src: 'fetchData',
               timeout: 'PT30S',
+              onTimeout: { target: 'success' },
               heartbeat: 'PT5S',
               retry: { maxAttempts: 3, interval: 1000, backoff: 2 },
               onDone: { target: 'success' },
@@ -485,11 +496,11 @@ describe('toXStateConfig', () => {
     };
     assert.throws(
       () => toXStateConfig(spec, noop),
-      /unsupported invoke semantics.*timeout, heartbeat, retry/i,
+      /unsupported invoke semantics.*heartbeat, retry/i,
     );
   });
 
-  test('transition context shorthand appends assign action', () => {
+  test('transition context shorthand becomes native v6 context', () => {
     const spec: StateMachine = {
       key: 'machine',
       queryLanguage: 'jsonata',
@@ -507,12 +518,12 @@ describe('toXStateConfig', () => {
       },
     };
     const config = toXStateConfig(spec, noop);
-    const actions = config.states.idle.on.INC.actions;
-    assert.ok(Array.isArray(actions));
-    assert.strictEqual(actions.length, 1);
+    assert.deepStrictEqual(config.states.idle.on.INC.context, {
+      count: { '@expr': 'context.count + 1', '@lang': 'jsonata' },
+    });
   });
 
-  test('transition context shorthand merges with explicit actions', () => {
+  test('transition context coexists with explicit actions', () => {
     const spec: StateMachine = {
       key: 'machine',
       queryLanguage: 'jsonata',
@@ -532,9 +543,11 @@ describe('toXStateConfig', () => {
     };
     const config = toXStateConfig(spec, noop);
     const actions = config.states.idle.on.INC.actions;
-    assert.strictEqual(actions.length, 2);
-    // First is the explicit log, second is the appended assign
-    assert.strictEqual(actions[0].type, 'xstate.log');
+    assert.strictEqual(actions.length, 1);
+    assert.strictEqual(actions[0].type, '@xstate.log');
+    assert.deepStrictEqual(config.states.idle.on.INC.context, {
+      count: { '@expr': 'context.count + 1', '@lang': 'jsonata' },
+    });
   });
 
   test('converts emit action with static event', () => {
@@ -554,8 +567,7 @@ describe('toXStateConfig', () => {
     };
     const config = toXStateConfig(spec, noop);
     assert.ok(config.states.idle.entry[0]);
-    // xstate emit returns a function-based action
-    assert.strictEqual(config.states.idle.entry[0].type, 'xstate.emit');
+    assert.strictEqual(config.states.idle.entry[0].type, '@xstate.emit');
   });
 
   test('converts emit action with expression event', () => {
@@ -577,7 +589,7 @@ describe('toXStateConfig', () => {
     };
     const config = toXStateConfig(spec, noop);
     assert.ok(config.states.idle.entry[0]);
-    assert.strictEqual(config.states.idle.entry[0].type, 'xstate.emit');
+    assert.strictEqual(config.states.idle.entry[0].type, '@xstate.emit');
   });
 
   test('converts final state output expression', () => {
@@ -592,7 +604,10 @@ describe('toXStateConfig', () => {
       },
     };
     const config = toXStateConfig(spec, noop);
-    assert.strictEqual(typeof config.states.done.output, 'function');
+    assert.deepStrictEqual(config.states.done.output, {
+      '@expr': 'context.result',
+      '@lang': 'jsonata',
+    });
   });
 
   test('converts final state static output', () => {
@@ -608,6 +623,84 @@ describe('toXStateConfig', () => {
     };
     const config = toXStateConfig(spec, noop);
     assert.deepStrictEqual(config.states.done.output, { status: 'ok' });
+  });
+
+  test('converts XState v6 state, transition, invoke, and source fields', () => {
+    const spec = machineSchema.parse({
+      key: 'machine',
+      profile: 'xstate',
+      queryLanguage: 'jmespath',
+      actions: {
+        notify: { type: '@xstate.emit', event: { type: 'NOTICE' } },
+      },
+      guards: { ready: { when: '{{ context.ready }}' } },
+      delays: { short: 'PT1S' },
+      initial: 'choose',
+      states: {
+        choose: {
+          type: 'choice',
+          choice: [
+            { when: '{{ context.ready }}', target: 'working' },
+            { target: 'failed' },
+          ],
+        },
+        working: {
+          timeout: 'PT30S',
+          onTimeout: { target: 'failed' },
+          onError: { target: 'failed' },
+          on: {
+            RESULT: {
+              target: 'done',
+              matches: { status: 'ok' },
+              input: '{{ event.output }}',
+            },
+          },
+        },
+        done: { type: 'final' },
+        failed: { type: 'final' },
+      },
+    });
+
+    const config = toXStateConfig(spec);
+    assert.strictEqual(config['@exprLang'], 'jmespath');
+    assert.deepStrictEqual(config.states.choose.choice[0].when, {
+      '@expr': 'context.ready',
+      '@lang': 'jmespath',
+    });
+    assert.strictEqual(config.states.working.timeout, 'PT30S');
+    assert.deepStrictEqual(config.states.working.on.RESULT.matches, {
+      status: 'ok',
+    });
+    assert.deepStrictEqual(config.actions.notify, {
+      type: '@xstate.emit',
+      event: { type: 'NOTICE' },
+    });
+  });
+
+  test('round-trips the representable XState v6 MachineJSON subset', () => {
+    const spec = machineSchema.parse({
+      key: 'counter',
+      profile: 'xstate',
+      queryLanguage: 'jmespath',
+      context: { count: 0 },
+      initial: 'idle',
+      states: {
+        idle: {
+          on: {
+            INC: {
+              target: 'idle',
+              context: { count: '{{ context.count + `1` }}' },
+            },
+          },
+        },
+      },
+    });
+    const config = toXStateConfig(spec);
+    const restored = machineSchema.parse(fromXStateConfig(config));
+
+    assert.deepStrictEqual(toXStateConfig(restored), config);
+    const machine = toXStateMachine(spec, createJmespathEvaluator());
+    assert.deepStrictEqual(serializeMachine(machine), config);
   });
 });
 
@@ -633,6 +726,66 @@ describe('toXStateMachine', () => {
 
     const [s2] = transition(machine, s1, { type: 'STOP' });
     assert.strictEqual(s2.value, 'idle');
+  });
+
+  test('state onDone executes through the v6 MachineJSON adapter', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'parent',
+      states: {
+        parent: {
+          initial: 'working',
+          states: {
+            working: { on: { FINISH: { target: 'complete' } } },
+            complete: { type: 'final' },
+          },
+          onDone: { target: 'done' },
+        },
+        done: { type: 'final' },
+      },
+    };
+    const machine = convertSpecToMachine(spec, {
+      evaluate: () => undefined,
+    });
+    const [state] = initialTransition(machine);
+    const [next] = transition(machine, state, { type: 'FINISH' });
+    assert.strictEqual(next.value, 'done');
+  });
+
+  test('choice branches and transition matches execute in v6', () => {
+    const spec = machineSchema.parse({
+      key: 'machine',
+      queryLanguage: 'jmespath',
+      context: { ready: true },
+      initial: 'choose',
+      states: {
+        choose: {
+          type: 'choice',
+          choice: [
+            { when: '{{ context.ready }}', target: 'waiting' },
+            { target: 'failed' },
+          ],
+        },
+        waiting: {
+          on: {
+            RESULT: [
+              { target: 'done', matches: { status: 'ok' } },
+              { target: 'failed' },
+            ],
+          },
+        },
+        done: { type: 'final' },
+        failed: { type: 'final' },
+      },
+    });
+    const machine = convertSpecToMachine(spec);
+    const [state] = initialTransition(machine);
+    assert.strictEqual(state.value, 'waiting');
+    const [next] = transition(machine, state, {
+      type: 'RESULT',
+      status: 'ok',
+    } as any);
+    assert.strictEqual(next.value, 'done');
   });
 });
 
@@ -708,7 +861,7 @@ describe('jsonata converter', () => {
     assert.strictEqual(result, 'a');
   });
 
-  test('built-in jsonata conversion fails fast', () => {
+  test('jsonata config conversion stays data while execution fails fast', () => {
     const spec: StateMachine = {
       key: 'machine',
       queryLanguage: 'jsonata',
@@ -719,10 +872,7 @@ describe('jsonata converter', () => {
       },
     };
 
-    assert.throws(
-      () => convertSpecToConfig(spec),
-      /jsonata evaluator is async/i,
-    );
+    assert.strictEqual(convertSpecToConfig(spec)['@exprLang'], 'jsonata');
     assert.throws(
       () => convertSpecToMachine(spec),
       /jsonata evaluator is async/i,
@@ -783,7 +933,7 @@ describe('jsonata converter', () => {
     assert.strictEqual(canConvertToXState(spec), false);
   });
 
-  test('xstate conversion support helper reports unsupported invoke semantics', () => {
+  test('xstate conversion support helper accepts timeout', () => {
     const spec: StateMachine = {
       key: 'machine',
       queryLanguage: 'jmespath',
@@ -793,6 +943,7 @@ describe('jsonata converter', () => {
             {
               src: 'fetchData',
               timeout: 'PT30S',
+              onTimeout: { target: 'loading' },
             },
           ],
         },
@@ -800,11 +951,9 @@ describe('jsonata converter', () => {
     };
 
     assert.deepStrictEqual(getXStateConversionSupport(spec), {
-      supported: false,
-      reason:
-        'Unsupported invoke semantics for XState conversion at "machine.loading.invoke[0]": timeout. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().',
+      supported: true,
     });
-    assert.strictEqual(canConvertToXState(spec), false);
+    assert.strictEqual(canConvertToXState(spec), true);
   });
 
   test('xstate conversion support rejects malformed built-in actions', () => {
@@ -839,6 +988,32 @@ describe('jsonata converter', () => {
       canConvertToXState(spec, { evaluate: () => undefined }),
       true,
     );
+  });
+
+  test('query language overrides reach MachineJSON and runtime evaluators', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      queryLanguage: 'jsonata',
+      context: { ready: true },
+      initial: 'idle',
+      states: {
+        idle: {
+          on: {
+            GO: { target: 'done', guard: '{{ $.context.ready }}' },
+          },
+        },
+        done: {},
+      },
+    };
+    const config = convertSpecToConfig(spec, { queryLanguage: 'jsonpath' });
+    assert.strictEqual(config['@exprLang'], 'jsonpath');
+
+    const machine = convertSpecToMachine(spec, {
+      queryLanguage: 'jsonpath',
+    });
+    const [state] = initialTransition(machine);
+    const [next] = transition(machine, state, { type: 'GO' });
+    assert.strictEqual(next.value, 'done');
   });
 
   test('async evaluators are rejected during execution', () => {
@@ -907,8 +1082,9 @@ describe('jsonata converter', () => {
     });
     assert.strictEqual(config.initial, 'idle');
     assert.deepStrictEqual(config.context, { count: 0 });
-    const actions = config.states.idle.on.INC.actions;
-    assert.ok(actions.length === 1);
+    assert.deepStrictEqual(config.states.idle.on.INC.context, {
+      count: { '@expr': 'context.count + 1', '@lang': 'jsonata' },
+    });
   });
 
   test('core.assign updates context via transition()', () => {

@@ -184,6 +184,40 @@ describe('machineToGraph', () => {
     assert.deepStrictEqual(labels, ['fetchData.onDone', 'fetchData.onError']);
   });
 
+  test('choice, state error/timeout, and invoke timeout transitions', () => {
+    const spec: StateMachine = {
+      key: 'machine',
+      initial: 'choose',
+      states: {
+        choose: {
+          type: 'choice',
+          choice: [
+            { when: '{{ context.ready }}', target: 'working' },
+            { target: 'failed' },
+          ],
+        },
+        working: {
+          timeout: 1000,
+          onTimeout: { target: 'failed' },
+          onError: { target: 'failed' },
+          invoke: [
+            {
+              src: 'worker',
+              timeout: 500,
+              onTimeout: { target: 'failed' },
+            },
+          ],
+        },
+        failed: {},
+      },
+    };
+    const graph = machineToGraph(spec);
+    assert.deepStrictEqual(
+      graph.edges.map((edge) => edge.label).sort(),
+      ['choice', 'choice', 'onError', 'onTimeout', 'worker.onTimeout'].sort(),
+    );
+  });
+
   test('nested states use dot-separated IDs with parentId', () => {
     const spec: StateMachine = {
       key: 'machine',

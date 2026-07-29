@@ -1,21 +1,22 @@
-import {
-  createMachine,
-  assign,
-  raise,
-  sendTo,
-  log as xstateLog,
-  emit as xstateEmit,
-} from 'xstate';
-import type { StateMachine } from './machineSchema';
+import { createMachineFromConfig, type MachineJSON } from 'xstate';
+import { machineSchema, type StateMachine } from './machineSchema';
 
-/**
- * Evaluates an expression string against a data context.
- * Implementations exist per query language (jsonata, jmespath, jsonpath).
- */
+/** Evaluates an expression against the active XState evaluation scope. */
 export type ExpressionEvaluator = (
   expression: string,
   data: { context: any; event: any },
 ) => any;
+
+export type XStateV6Sources = NonNullable<
+  Parameters<typeof createMachineFromConfig>[1]
+>;
+
+export interface XStateV6Config extends MachineJSON {
+  key?: string;
+  profile?: string;
+  queryLanguage?: string;
+  triggers?: StateMachine['triggers'];
+}
 
 const EXPR_RE = /^\{\{[\s\S]*\}\}$/;
 
@@ -27,15 +28,12 @@ export function stripDelimiters(expr: string): string {
   return expr.slice(2, -2).trim();
 }
 
-/**
- * Parses an ISO 8601 duration string (e.g. PT30S, PT1M, PT1H30M5S) to milliseconds.
- * Falls through to the raw value if not a valid ISO duration.
- */
+/** Parses an ISO 8601 duration, otherwise preserves the original delay key. */
 export function parseISO8601Duration(value: string): number | string {
   const match = value.match(
     /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/,
   );
-  if (!match) return value; // not ISO — pass through (could be ms string)
+  if (!match) return value;
   const days = parseInt(match[1] || '0', 10);
   const hours = parseInt(match[2] || '0', 10);
   const minutes = parseInt(match[3] || '0', 10);
@@ -57,14 +55,34 @@ function evaluateSync(
   data: { context: any; event: any },
 ) {
   const result = evaluate(expression, data);
-
   if (isPromiseLike(result)) {
     throw new Error(
       'Async expression evaluators are not supported by XState conversion. Provide a synchronous evaluator or use a synchronous query language.',
     );
   }
-
   return result;
+}
+
+function expressionJSON(expression: string, language?: string) {
+  return {
+    '@expr': stripDelimiters(expression),
+    ...(language ? { '@lang': language } : {}),
+  };
+}
+
+function convertValue(value: unknown, language?: string): unknown {
+  if (isExpression(value)) return expressionJSON(value, language);
+  if (Array.isArray(value)) {
+    return value.map((item) => convertValue(item, language));
+  }
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      convertValue(item, language),
+    ]),
+  );
 }
 
 function sortTransitions(transitions: any[]): any[] {
@@ -79,269 +97,386 @@ function sortTransitions(transitions: any[]): any[] {
         typeof b.transition.order === 'number'
           ? b.transition.order
           : Number.POSITIVE_INFINITY;
-
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-
-      return a.index - b.index;
+      return orderA === orderB ? a.index - b.index : orderA - orderB;
     })
     .map(({ transition }) => transition);
 }
 
-function assertSupportedInvoke(inv: any) {
-  const unsupportedKeys = ['timeout', 'heartbeat', 'retry'].filter(
-    (key) => inv[key] != null,
-  );
-
-  if (unsupportedKeys.length) {
-    throw new Error(
-      `Unsupported invoke semantics for XState conversion: ${unsupportedKeys.join(
-        ', ',
-      )}. These require a runtime wrapper and are not implemented by toXStateConfig()/toXStateMachine().`,
-    );
-  }
+function convertGuard(guard: any, language?: string): any {
+  return isExpression(guard)
+    ? expressionJSON(guard, language)
+    : convertValue(guard, language);
 }
 
-function convertAction(action: any, evaluate: ExpressionEvaluator): any {
+function convertAction(action: any, language?: string): any {
   switch (action.type) {
     case 'core.assign':
-    case 'xstate.assign': {
-      const assignments: Record<string, any> = {};
-      const assignmentSource =
-        action.type === 'core.assign' ? action.assignments : action.params;
-      for (const [key, value] of Object.entries(
-        (assignmentSource ?? {}) as Record<string, any>,
-      )) {
-        if (isExpression(value)) {
-          const expr = stripDelimiters(value);
-          assignments[key] = ({ context, event }: any) =>
-            evaluateSync(evaluate, expr, { context, event });
-        } else {
-          // Static value — wrap in function for xstate v5
-          const v = value;
-          assignments[key] = () => v;
-        }
-      }
-      return assign(assignments);
+      return {
+        type: '@xstate.assign',
+        context: convertValue(action.assignments, language),
+      };
+    case 'xstate.assign':
+      return {
+        type: '@xstate.assign',
+        context: convertValue(action.params ?? {}, language),
+      };
+    case 'xstate.raise':
+      return {
+        type: '@xstate.raise',
+        ...(convertValue(action.params ?? {}, language) as Record<
+          string,
+          unknown
+        >),
+      };
+    case 'xstate.cancel':
+      return {
+        type: '@xstate.cancel',
+        ...(convertValue(action.params ?? {}, language) as Record<
+          string,
+          unknown
+        >),
+      };
+    case 'xstate.log': {
+      const message = action.params?.message;
+      return {
+        type: '@xstate.log',
+        args: message === undefined ? [] : [convertValue(message, language)],
+      };
     }
-    case 'xstate.raise': {
-      const evt = action.params.event;
-      if (isExpression(evt)) {
-        const expr = stripDelimiters(evt);
-        return raise(({ context, event }: any) =>
-          evaluateSync(evaluate, expr, { context, event }),
-        );
-      }
-      return raise(evt);
+    case 'xstate.emit':
+      return {
+        type: '@xstate.emit',
+        ...(convertValue(action.params ?? {}, language) as Record<
+          string,
+          unknown
+        >),
+      };
+    case 'xstate.sendTo':
+      throw new Error(
+        'xstate.sendTo has no declarative XState v6 MachineJSON equivalent. Provide a named custom action source instead.',
+      );
+    default:
+      return convertValue(action, language);
+  }
+}
+
+function convertTransition(transition: any, language?: string): any {
+  const result: Record<string, unknown> = {};
+  for (const key of ['target', 'matches', 'description', 'reenter', 'meta']) {
+    if (transition[key] !== undefined) result[key] = transition[key];
+  }
+  if (transition.guard !== undefined) {
+    result.guard = convertGuard(transition.guard, language);
+  }
+  if (transition.input !== undefined) {
+    result.input = convertValue(transition.input, language);
+  }
+  const transitionContext: Record<string, unknown> =
+    transition.context === undefined
+      ? {}
+      : (convertValue(transition.context, language) as Record<string, unknown>);
+  const actions: unknown[] = [];
+  for (const action of transition.actions ?? []) {
+    if (action.type === 'core.assign') {
+      Object.assign(
+        transitionContext,
+        convertValue(action.assignments, language),
+      );
+    } else if (action.type === 'xstate.assign') {
+      Object.assign(
+        transitionContext,
+        convertValue(action.params ?? {}, language),
+      );
+    } else {
+      actions.push(convertAction(action, language));
     }
-    case 'xstate.sendTo': {
-      const { actorRef, event: evt, delay } = action.params;
-      const actorArg = isExpression(actorRef)
-        ? ({ context, event }: any) =>
-            evaluateSync(evaluate, stripDelimiters(actorRef), {
-              context,
-              event,
-            })
-        : actorRef;
-      const eventArg = isExpression(evt)
-        ? ({ context, event }: any) =>
-            evaluateSync(evaluate, stripDelimiters(evt), { context, event })
-        : evt;
-      const opts: any = {};
-      if (delay != null) {
-        opts.delay = isExpression(delay)
-          ? ({ context, event }: any) =>
-              evaluateSync(evaluate, stripDelimiters(delay as string), {
-                context,
-                event,
-              })
-          : delay;
-      }
-      return sendTo(
-        actorArg,
-        eventArg,
-        Object.keys(opts).length ? opts : undefined,
+  }
+  if (Object.keys(transitionContext).length) result.context = transitionContext;
+  if (actions.length) result.actions = actions;
+  return result;
+}
+
+function convertTransitions(transitions: any, language?: string): any {
+  if (transitions == null) return undefined;
+  return Array.isArray(transitions)
+    ? sortTransitions(transitions).map((transition) =>
+        convertTransition(transition, language),
+      )
+    : convertTransition(transitions, language);
+}
+
+function convertChoice(branches: any[], language?: string) {
+  return branches.map((branch) => ({
+    ...(branch.when !== undefined
+      ? { when: convertGuard(branch.when, language) }
+      : {}),
+    target: branch.target,
+    ...(branch.context !== undefined
+      ? { context: convertValue(branch.context, language) }
+      : {}),
+    ...(branch.input !== undefined
+      ? { input: convertValue(branch.input, language) }
+      : {}),
+    ...(branch.description !== undefined
+      ? { description: branch.description }
+      : {}),
+    ...(branch.reenter !== undefined ? { reenter: branch.reenter } : {}),
+    ...(branch.meta !== undefined ? { meta: branch.meta } : {}),
+  }));
+}
+
+function convertState(
+  state: any,
+  language?: string,
+  canonicalId?: string,
+): any {
+  const result: Record<string, any> = {};
+  for (const key of [
+    'id',
+    'description',
+    'type',
+    'history',
+    'target',
+    'initial',
+    'tags',
+    'meta',
+  ]) {
+    if (state[key] !== undefined) result[key] = state[key];
+  }
+  if (canonicalId !== undefined) result.id = state.id ?? canonicalId;
+  for (const key of ['context', 'input', 'output', 'timeout']) {
+    if (state[key] !== undefined) {
+      result[key] = convertValue(state[key], language);
+    }
+  }
+  for (const key of ['entry', 'exit']) {
+    if (state[key]?.length) {
+      result[key] = state[key].map((action: any) =>
+        convertAction(action, language),
       );
     }
-    case 'xstate.log': {
-      if (action.params?.message != null) {
-        const msg = action.params.message;
-        if (isExpression(msg)) {
-          const expr = stripDelimiters(msg);
-          return xstateLog(({ context, event }: any) =>
-            evaluateSync(evaluate, expr, { context, event }),
-          );
-        }
-        return xstateLog(msg);
-      }
-      return xstateLog();
+  }
+  if (state.on) {
+    result.on = Object.fromEntries(
+      Object.entries(state.on).map(([event, transitions]) => [
+        event,
+        convertTransitions(transitions, language),
+      ]),
+    );
+  }
+  if (state.after) {
+    result.after = Object.fromEntries(
+      Object.entries(state.after).map(([delay, transitions]) => [
+        String(parseISO8601Duration(delay)),
+        convertTransitions(transitions, language),
+      ]),
+    );
+  }
+  for (const key of ['always', 'onError', 'onTimeout']) {
+    if (state[key] !== undefined) {
+      result[key] = convertTransitions(state[key], language);
     }
-    case 'xstate.emit': {
-      const evt = action.params.event;
-      if (isExpression(evt)) {
-        const expr = stripDelimiters(evt);
-        return xstateEmit(({ context, event }: any) =>
-          evaluateSync(evaluate, expr, { context, event }),
+  }
+  if (state.onDone !== undefined) {
+    const doneTransitions = convertTransitions(state.onDone, language);
+    const values = Array.isArray(doneTransitions)
+      ? doneTransitions
+      : [doneTransitions];
+    const matched = values.map((transition) => ({
+      ...transition,
+      matches: {
+        ...transition.matches,
+        stateId: result.id,
+      },
+    }));
+    const converted = Array.isArray(doneTransitions) ? matched : matched[0];
+    result.on ??= {};
+    result.on['xstate.done.state'] = converted;
+  }
+  if (state.choice) result.choice = convertChoice(state.choice, language);
+  if (state.route !== undefined) {
+    result.route = convertValue(state.route, language);
+  }
+  if (state.invoke) {
+    result.invoke = state.invoke.map((invoke: any) => {
+      const unsupported = ['heartbeat', 'retry'].filter(
+        (key) => invoke[key] !== undefined,
+      );
+      if (unsupported.length) {
+        throw new Error(
+          `Unsupported invoke semantics for XState v6 conversion: ${unsupported.join(', ')}.`,
         );
       }
-      return xstateEmit(evt);
-    }
-    default:
-      // Custom action — pass through as-is (requires setup() to resolve)
-      return { ...action };
-  }
-}
-
-function convertGuard(guard: any, evaluate: ExpressionEvaluator): any {
-  if (isExpression(guard)) {
-    const expr = stripDelimiters(guard);
-    return ({ context, event }: any) =>
-      Boolean(evaluateSync(evaluate, expr, { context, event }));
-  }
-  // Named guard — preserve profile-specific fields
-  return { ...guard };
-}
-
-function convertTransition(t: any, evaluate: ExpressionEvaluator): any {
-  const result: any = {};
-  if (t.target != null) result.target = t.target;
-  if (t.description) result.description = t.description;
-  if (t.guard) result.guard = convertGuard(t.guard, evaluate);
-  if (t.reenter != null) result.reenter = t.reenter;
-
-  // Collect explicit actions
-  const actions: any[] = t.actions?.length
-    ? t.actions.map((a: any) => convertAction(a, evaluate))
-    : [];
-
-  // Append implicit assign from transition `context`
-  if (t.context) {
-    actions.push(
-      convertAction({ type: 'core.assign', assignments: t.context }, evaluate),
-    );
-  }
-
-  if (actions.length) result.actions = actions;
-  if (t.meta) result.meta = t.meta;
-  return result;
-}
-
-function convertTransitions(trans: any, evaluate: ExpressionEvaluator): any {
-  if (trans == null) return undefined;
-  if (Array.isArray(trans))
-    return sortTransitions(trans).map((t: any) =>
-      convertTransition(t, evaluate),
-    );
-  return convertTransition(trans, evaluate);
-}
-
-function convertState(state: any, evaluate: ExpressionEvaluator): any {
-  const result: any = {};
-  if (state.id) result.id = state.id;
-  if (state.description) result.description = state.description;
-  if (state.type) result.type = state.type;
-  if (state.history) result.history = state.history;
-  if (state.target) result.target = state.target;
-  if (state.initial) result.initial = state.initial;
-  if (state.tags) result.tags = state.tags;
-
-  if (state.entry?.length) {
-    result.entry = state.entry.map((a: any) => convertAction(a, evaluate));
-  }
-  if (state.exit?.length) {
-    result.exit = state.exit.map((a: any) => convertAction(a, evaluate));
-  }
-
-  if (state.on) {
-    result.on = {} as Record<string, any>;
-    for (const [event, trans] of Object.entries(state.on)) {
-      result.on[event] = convertTransitions(trans, evaluate);
-    }
-  }
-
-  if (state.after) {
-    result.after = {} as Record<string, any>;
-    for (const [delay, trans] of Object.entries(state.after)) {
-      // Convert ISO 8601 durations to ms
-      const key = parseISO8601Duration(delay);
-      result.after[key] = convertTransitions(trans, evaluate);
-    }
-  }
-
-  if (state.always) {
-    result.always = convertTransitions(state.always, evaluate);
-  }
-
-  if (state.onDone) {
-    result.onDone = convertTransitions(state.onDone, evaluate);
-  }
-
-  if (state.invoke) {
-    result.invoke = state.invoke.map((inv: any) => {
-      assertSupportedInvoke(inv);
-      const r: any = { ...inv, src: inv.src };
-      if (inv.id) r.id = inv.id;
-      if (inv.input != null) {
-        if (isExpression(inv.input)) {
-          const expr = stripDelimiters(inv.input);
-          r.input = ({ context, event }: any) =>
-            evaluateSync(evaluate, expr, { context, event });
-        } else {
-          r.input = inv.input;
+      const converted = convertValue(invoke, language) as Record<
+        string,
+        unknown
+      >;
+      for (const key of ['input', 'timeout']) {
+        if (invoke[key] !== undefined) {
+          converted[key] = convertValue(invoke[key], language);
         }
       }
-      if (inv.onDone) r.onDone = convertTransitions(inv.onDone, evaluate);
-      if (inv.onError) r.onError = convertTransitions(inv.onError, evaluate);
-      if (inv.onSnapshot)
-        r.onSnapshot = convertTransitions(inv.onSnapshot, evaluate);
-      return r;
+      for (const key of ['onDone', 'onError', 'onSnapshot', 'onTimeout']) {
+        if (invoke[key] !== undefined) {
+          converted[key] = convertTransitions(invoke[key], language);
+        }
+      }
+      return converted;
     });
   }
-
-  if (state.output !== undefined) {
-    if (isExpression(state.output)) {
-      const expr = stripDelimiters(state.output);
-      result.output = ({ context, event }: any) =>
-        evaluateSync(evaluate, expr, { context, event });
-    } else {
-      result.output = state.output;
-    }
-  }
-
-  if (state.meta) result.meta = state.meta;
-
   if (state.states) {
-    result.states = {} as Record<string, any>;
-    for (const [key, child] of Object.entries(state.states)) {
-      result.states[key] = convertState(child, evaluate);
-    }
+    result.states = Object.fromEntries(
+      Object.entries(state.states).map(([key, child]) => [
+        key,
+        convertState(child, language, result.id ? `${result.id}.${key}` : key),
+      ]),
+    );
   }
-
   return result;
 }
 
-/**
- * Converts a Stately spec machine to an xstate-compatible config object.
- * Can be passed to `createMachine()` or `setup().createMachine()`.
- */
+/** Converts the runtime-neutral specification into XState v6 MachineJSON. */
 export function toXStateConfig(
   spec: StateMachine,
-  evaluate: ExpressionEvaluator,
-) {
-  const config = convertState(spec, evaluate);
-  if (spec.context) config.context = spec.context;
-  if (spec.triggers) config.triggers = spec.triggers;
-  if (spec.version) config.version = spec.version;
+  _evaluate?: ExpressionEvaluator,
+): any {
+  const language = spec.queryLanguage ?? 'stately';
+  const config = convertState(spec, language, spec.key) as XStateV6Config;
+  config.key = spec.key;
+  config.profile = spec.profile ?? 'xstate';
+  if (spec.queryLanguage !== undefined) {
+    config.queryLanguage = spec.queryLanguage;
+  }
+  config['@exprLang'] = language;
+  if (spec.version !== undefined) config.version = spec.version;
+  if (spec.triggers !== undefined) config.triggers = spec.triggers;
+  if (spec.schemas !== undefined) config.schemas = spec.schemas;
+  if (spec.actions !== undefined) {
+    config.actions = Object.fromEntries(
+      Object.entries(spec.actions).map(([key, value]) => [
+        key,
+        Array.isArray(value)
+          ? value.map((action) => convertAction(action, language))
+          : convertAction(value, language),
+      ]),
+    );
+  }
+  if (spec.guards !== undefined) {
+    config.guards = Object.fromEntries(
+      Object.entries(spec.guards).map(([key, value]) => [
+        key,
+        { when: convertGuard(value.when, language) },
+      ]),
+    );
+  }
+  if (spec.actors !== undefined) config.actors = spec.actors;
+  if (spec.delays !== undefined) {
+    config.delays = convertValue(
+      spec.delays,
+      language,
+    ) as MachineJSON['delays'];
+  }
   return config;
 }
 
-/**
- * Converts a Stately spec machine to a live xstate machine via `createMachine()`.
- */
+function evaluatorSource(
+  evaluate: ExpressionEvaluator,
+): NonNullable<XStateV6Sources['evaluators']>[string] {
+  return ({ source, scope }) =>
+    evaluateSync(evaluate, source, {
+      context: scope.context,
+      event: scope.event,
+    });
+}
+
+/** Creates an executable XState v6 machine from a Stately specification. */
 export function toXStateMachine(
   spec: StateMachine,
   evaluate: ExpressionEvaluator,
+  sources: XStateV6Sources = {},
 ) {
-  return createMachine(toXStateConfig(spec, evaluate));
+  const language = spec.queryLanguage;
+  const evaluatorLanguage = language ?? 'stately';
+  return createMachineFromConfig(toXStateConfig(spec, evaluate), {
+    ...sources,
+    evaluators: {
+      ...sources.evaluators,
+      [evaluatorLanguage]: evaluatorSource(evaluate),
+    },
+  });
+}
+
+function restoreValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(restoreValue);
+  if (!value || typeof value !== 'object') return value;
+  if (typeof (value as Record<string, unknown>)['@expr'] === 'string') {
+    return `{{ ${(value as Record<string, unknown>)['@expr']} }}`;
+  }
+  if (typeof (value as Record<string, unknown>)['@code'] === 'string') {
+    throw new Error(
+      'XState @code values cannot be represented by the runtime-neutral specification.',
+    );
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, restoreValue(item)]),
+  );
+}
+
+function restoreStateNode(
+  node: Record<string, any>,
+  canonicalId: string,
+): void {
+  const stateId = node.id ?? canonicalId;
+  const doneTransitions = node.on?.['xstate.done.state'];
+  if (doneTransitions !== undefined) {
+    const values = Array.isArray(doneTransitions)
+      ? doneTransitions
+      : [doneTransitions];
+    if (
+      values.every((transition) => transition?.matches?.stateId === stateId)
+    ) {
+      const restored = values.map((transition) => {
+        const result = { ...transition };
+        const { stateId: _stateId, ...matches } = result.matches;
+        if (Object.keys(matches).length) result.matches = matches;
+        else delete result.matches;
+        return result;
+      });
+      node.onDone = Array.isArray(doneTransitions) ? restored : restored[0];
+      delete node.on['xstate.done.state'];
+      if (!Object.keys(node.on).length) delete node.on;
+    }
+  }
+
+  if (node.id === canonicalId) delete node.id;
+  for (const [key, child] of Object.entries(node.states ?? {})) {
+    restoreStateNode(child as Record<string, any>, `${canonicalId}.${key}`);
+  }
+}
+
+export interface FromXStateV6Options {
+  key?: string;
+}
+
+/** Converts the serializable XState v6 MachineJSON subset into a specification. */
+export function fromXStateConfig(
+  config: XStateV6Config,
+  options: FromXStateV6Options = {},
+): StateMachine {
+  const restored = restoreValue(config) as Record<string, any>;
+  const language = config['@exprLang'] ?? config.queryLanguage;
+  delete restored['@exprLang'];
+  delete restored.queryLanguage;
+  delete restored.profile;
+  delete restored.triggers;
+  const key = options.key ?? config.key ?? config.id ?? 'machine';
+  restoreStateNode(restored, key);
+
+  return machineSchema.parse({
+    ...restored,
+    key,
+    profile: 'xstate',
+    ...(language ? { queryLanguage: language } : {}),
+    ...(config.triggers ? { triggers: config.triggers } : {}),
+  });
 }

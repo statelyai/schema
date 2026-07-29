@@ -89,7 +89,7 @@
     "@statelyai/graph": "^0.8.0",
     "jmespath": "^0.16.0",
     "jsonpath-plus": "^10.4.0",
-    "xstate": "^5.28.0"
+    "xstate": "6.0.0-alpha.25"
   },
   "engines": {
     "node": ">=20"

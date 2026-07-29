@@ -69,6 +69,48 @@ export const coreAssignActionSchema = z
   })
   .strict();
 
+export const xstateAssignActionSchema = z
+  .object({
+    type: z.literal('@xstate.assign'),
+    context: assignmentSchema,
+  })
+  .strict();
+
+const eventValueSchema = z.union([
+  expressionSchema,
+  z.object({ type: z.string() }).catchall(jsonValueSchema),
+]);
+
+export const xstateRaiseActionSchema = z
+  .object({
+    type: z.literal('@xstate.raise'),
+    event: eventValueSchema,
+    id: z.string().optional(),
+    delay: z.number().finite().optional(),
+  })
+  .strict();
+
+export const xstateCancelActionSchema = z
+  .object({
+    type: z.literal('@xstate.cancel'),
+    id: z.string(),
+  })
+  .strict();
+
+export const xstateLogActionSchema = z
+  .object({
+    type: z.literal('@xstate.log'),
+    args: z.array(jsonValueSchema),
+  })
+  .strict();
+
+export const xstateEmitActionSchema = z
+  .object({
+    type: z.literal('@xstate.emit'),
+    event: eventValueSchema,
+  })
+  .strict();
+
 const profileActionSchema = z
   .object({
     type: z.string(),
@@ -76,17 +118,31 @@ const profileActionSchema = z
   })
   .catchall(jsonValueSchema)
   .superRefine((action, ctx) => {
-    if (action.type === 'core.assign') {
+    if (
+      [
+        'core.assign',
+        '@xstate.assign',
+        '@xstate.raise',
+        '@xstate.cancel',
+        '@xstate.log',
+        '@xstate.emit',
+      ].includes(action.type)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['type'],
-        message: 'core.assign must satisfy the core assign action schema',
+        message: `${action.type} must satisfy its reserved action schema`,
       });
     }
   });
 
 export const actionSchema = z.union([
   coreAssignActionSchema,
+  xstateAssignActionSchema,
+  xstateRaiseActionSchema,
+  xstateCancelActionSchema,
+  xstateLogActionSchema,
+  xstateEmitActionSchema,
   profileActionSchema,
 ]);
 
@@ -129,6 +185,10 @@ export const triggersSchema = z.array(triggerSchema).optional();
 export const transitionObjectSchema = z
   .object({
     target: z.union([z.string(), z.array(z.string())]).optional(),
+    matches: z
+      .record(z.string(), jsonValueSchema)
+      .optional()
+      .describe('Shallow event payload pattern matched before guards'),
     context: z
       .record(z.string(), expressionOr(jsonValueSchema))
       .optional()
@@ -139,6 +199,9 @@ export const transitionObjectSchema = z
     description: z.string().optional(),
     guard: guardSchema.optional(),
     meta: metaSchema.optional(),
+    input: expressionOr(jsonValueSchema)
+      .optional()
+      .describe('Input supplied to target states'),
     order: z.number().optional().describe('Explicit transition priority'),
     reenter: z
       .boolean()
@@ -182,6 +245,7 @@ export const retrySchema = z
 export const invokeSchema = z
   .object({
     id: z.string().optional(),
+    registryKey: z.string().optional(),
     src: z.string(),
     input: expressionOr(jsonValueSchema)
       .optional()
@@ -195,9 +259,12 @@ export const invokeSchema = z
         'Transitions triggered when the invoked actor emits a snapshot',
       ),
     timeout: z
-      .string()
+      .union([z.string(), z.number().finite()])
       .optional()
-      .describe('ISO 8601 duration for invocation timeout'),
+      .describe('Milliseconds, delay reference, or ISO 8601 duration'),
+    onTimeout: transitionsSchema
+      .optional()
+      .describe('Transition taken when the invocation times out'),
     heartbeat: z
       .string()
       .optional()
@@ -206,7 +273,41 @@ export const invokeSchema = z
       .optional()
       .describe('Retry policy for the invoked actor on error'),
   })
-  .catchall(jsonValueSchema);
+  .catchall(jsonValueSchema)
+  .superRefine((invoke, ctx) => {
+    if (invoke.timeout != null && invoke.onTimeout == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['onTimeout'],
+        message: 'onTimeout is required when timeout is set',
+      });
+    }
+  });
+
+export const choiceBranchSchema = z
+  .object({
+    when: guardSchema.optional(),
+    target: z.union([z.string(), z.array(z.string())]),
+    context: z.record(z.string(), expressionOr(jsonValueSchema)).optional(),
+    input: expressionOr(jsonValueSchema).optional(),
+    description: z.string().optional(),
+    reenter: z.boolean().optional(),
+    meta: metaSchema.optional(),
+  })
+  .strict();
+
+export const routeSchema = z.union([
+  expressionSchema,
+  z
+    .object({
+      description: z.string().optional(),
+      reenter: z.boolean().optional(),
+      meta: metaSchema.optional(),
+      guard: z.string().optional(),
+      input: z.record(z.string(), jsonValueSchema).optional(),
+    })
+    .strict(),
+]);
 
 // --- State ---
 
@@ -224,7 +325,7 @@ export const stateSchema = z
       .optional()
       .describe('The text description of this state node'),
     type: z
-      .union([z.literal('parallel'), z.literal('history'), z.literal('final')])
+      .enum(['atomic', 'compound', 'parallel', 'history', 'final', 'choice'])
       .optional()
       .describe(
         'The state type, if not a normal (atomic or compound) state node',
@@ -258,6 +359,21 @@ export const stateSchema = z
     onDone: transitionsSchema
       .optional()
       .describe('Transitions triggered when this state reaches done status'),
+    onError: transitionsSchema
+      .optional()
+      .describe('Transitions triggered by descendant execution errors'),
+    timeout: z
+      .union([z.string(), z.number().finite()])
+      .optional()
+      .describe('Milliseconds, delay reference, or ISO 8601 duration'),
+    onTimeout: transitionsSchema
+      .optional()
+      .describe('Transition taken when this state times out'),
+    choice: z
+      .array(choiceBranchSchema)
+      .optional()
+      .describe('Ordered branches for choice states'),
+    route: routeSchema.optional().describe('Profile-defined state routing'),
     invoke: z
       .array(invokeSchema)
       .optional()
@@ -269,6 +385,13 @@ export const stateSchema = z
     output: expressionOr(jsonValueSchema)
       .optional()
       .describe('Output data for final states'),
+    input: expressionOr(jsonValueSchema)
+      .optional()
+      .describe('Input received when this state is entered'),
+    context: z
+      .record(z.string(), expressionOr(jsonValueSchema))
+      .optional()
+      .describe('Context initialized when this state is entered'),
     meta: metaSchema.optional().describe('The metadata for this state node'),
     get states() {
       return z
@@ -295,6 +418,32 @@ export const stateSchema = z
         });
       }
     }
+
+    if (state.timeout != null && state.onTimeout == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['onTimeout'],
+        message: 'onTimeout is required when timeout is set',
+      });
+    }
+
+    if (state.type === 'choice' && state.choice == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['choice'],
+        message: 'Choice states must define choice branches',
+      });
+    }
+
+    state.choice?.forEach((branch, index) => {
+      if (branch.when == null && index !== state.choice!.length - 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['choice', index, 'when'],
+          message: 'An unguarded choice fallback branch must be last',
+        });
+      }
+    });
   });
 
 // --- Machine (root) ---
@@ -332,6 +481,18 @@ export const schemasSchema = z
     }
   })
   .optional();
+
+const sourceActionSchema = z.union([actionSchema, z.array(actionSchema)]);
+const sourceGuardSchema = z.object({ when: guardSchema }).strict();
+const delaySourceSchema = z.union([
+  z.number().finite(),
+  z.string(),
+  z
+    .object({
+      duration: z.union([z.number().finite(), z.string()]),
+    })
+    .strict(),
+]);
 
 type DiagnosticPath = Array<string | number>;
 
@@ -423,7 +584,9 @@ function collectWarnings(machine: any): MachineDiagnostic[] {
 
     if (
       state.type === 'final' &&
-      ['on', 'after', 'always', 'onDone'].some((key) => state[key] != null)
+      ['on', 'after', 'always', 'onDone', 'onError', 'onTimeout'].some(
+        (key) => state[key] != null,
+      )
     ) {
       warnings.push({
         code: 'final.transitions',
@@ -441,6 +604,8 @@ function collectWarnings(machine: any): MachineDiagnostic[] {
         'after',
         'always',
         'onDone',
+        'onError',
+        'onTimeout',
         'entry',
         'exit',
         'invoke',
@@ -459,13 +624,18 @@ function collectWarnings(machine: any): MachineDiagnostic[] {
     for (const [delay, transitions] of Object.entries(state.after ?? {})) {
       collectTransitionWarnings(transitions, [...path, 'after', delay]);
     }
-    for (const key of ['always', 'onDone'] as const) {
+    for (const key of ['always', 'onDone', 'onError', 'onTimeout'] as const) {
       if (state[key] != null) {
         collectTransitionWarnings(state[key], [...path, key]);
       }
     }
     for (const [index, invoke] of (state.invoke ?? []).entries()) {
-      for (const key of ['onDone', 'onError', 'onSnapshot'] as const) {
+      for (const key of [
+        'onDone',
+        'onError',
+        'onSnapshot',
+        'onTimeout',
+      ] as const) {
         if (invoke[key] != null) {
           collectTransitionWarnings(invoke[key], [
             ...path,
@@ -503,6 +673,22 @@ export const machineSchema = stateSchema
       'Optional machine-level trigger metadata for runtimes and workflow hosts',
     ),
     schemas: schemasSchema,
+    actions: z
+      .record(z.string(), sourceActionSchema)
+      .optional()
+      .describe('Declarative named action definitions'),
+    guards: z
+      .record(z.string(), sourceGuardSchema)
+      .optional()
+      .describe('Declarative named guard definitions'),
+    actors: z
+      .record(z.string(), jsonValueSchema)
+      .optional()
+      .describe('Profile-defined serializable actor definitions'),
+    delays: z
+      .record(z.string(), delaySourceSchema)
+      .optional()
+      .describe('Named delay definitions'),
   })
   .strict()
   .superRefine(addGlobalIdIssues);

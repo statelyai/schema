@@ -18,8 +18,8 @@ importers:
         specifier: ^10.4.0
         version: 10.4.0
       xstate:
-        specifier: ^5.28.0
-        version: 5.28.0
+        specifier: 6.0.0-alpha.25
+        version: 6.0.0-alpha.25
       zod:
         specifier: '>=4.0.0'
         version: 4.1.12
@@ -973,8 +973,9 @@ packages:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==, tarball: https://registry.npmjs.org/word-wrap/-/word-wrap-1.2.5.tgz}
     engines: {node: '>=0.10.0'}
 
-  xstate@5.28.0:
-    resolution: {integrity: sha512-Iaqq6ZrUzqeUtA3hC5LQKZfR8ZLzEFTImMHJM3jWEdVvXWdKvvVLXZEiNQWm3SCA9ZbEou/n5rcsna1wb9t28A==, tarball: https://registry.npmjs.org/xstate/-/xstate-5.28.0.tgz}
+  xstate@6.0.0-alpha.25:
+    resolution: {integrity: sha512-zk36UtcEZJDcU0GH1xE94me6H+qVZq71bInqeqHXxxyW+PUCFCFH1emyjqFToGFJIyN54u35c59bLyp91c24kA==, tarball: https://registry.npmjs.org/xstate/-/xstate-6.0.0-alpha.25.tgz}
+    hasBin: true
 
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==, tarball: https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz}
@@ -1768,7 +1769,7 @@ snapshots:
 
   word-wrap@1.2.5: {}
 
-  xstate@5.28.0: {}
+  xstate@6.0.0-alpha.25: {}
 
   yocto-queue@0.1.0: {}
 

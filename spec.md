@@ -73,6 +73,10 @@ A machine is a state node with additional machine-level fields.
 | `context` | `Record<string, JSON value>` | No | Initial context. |
 | `triggers` | `Trigger[]` | No | Optional machine-level trigger metadata. The core spec preserves this field but does not interpret trigger semantics. |
 | `schemas` | `Schemas` | No | JSON Schema declarations for input, context, events, and output. |
+| `actions` | `Record<string, Action \| Action[]>` | No | Declarative named action definitions. Semantics are profile-defined. |
+| `guards` | `Record<string, { when: Guard }>` | No | Declarative named guard definitions. |
+| `actors` | `Record<string, JSON value>` | No | Serializable actor definitions. Semantics are profile-defined. |
+| `delays` | `Record<string, Delay>` | No | Named delay definitions. |
 
 The root machine is also a state node. Unless otherwise stated, state-node fields such as `id`, `description`, `type`, `initial`, `states`, `on`, `after`, `always`, `onDone`, `entry`, `exit`, `invoke`, `tags`, `output`, and `meta` MAY appear on the root.
 
@@ -141,18 +145,25 @@ A state represents a distinct mode or situation of the machine.
 |---|---|---|---|
 | `id` | `string` | No | Optional explicit global alias. MUST NOT start with `#`. |
 | `description` | `string` | No | Human-readable description. |
-| `type` | `"parallel" \| "history" \| "final"` | No | State type. Omit for atomic or compound states. |
+| `type` | `"atomic" \| "compound" \| "parallel" \| "history" \| "final" \| "choice"` | No | State type. It MAY be omitted for inferred atomic or compound states. |
 | `initial` | `string` | No | Key of an immediate child state. If present, it MUST name a key in this state's `states` object. |
 | `states` | `Record<string, State>` | No | Child states. Child object keys are canonical path segments. |
 | `on` | `Record<EventDescriptor, Transition>` | No | Event-driven transitions. |
 | `after` | `Record<string, Transition>` | No | Delayed transitions. Keys are delay values. |
 | `always` | `Transition` | No | Eventless transitions. |
 | `onDone` | `Transition` | No | Transitions taken when this state reaches done status. |
+| `onError` | `Transition` | No | Transitions taken for descendant execution errors. |
+| `timeout` | `number \| string` | No | Milliseconds, named delay, or ISO 8601 duration before timing out. |
+| `onTimeout` | `Transition` | Cond. | Required when `timeout` is present. |
+| `choice` | `ChoiceBranch[]` | Cond. | Ordered branches; required for choice states. |
+| `route` | `expression \| Route` | No | Profile-defined routing configuration. |
 | `entry` | `Action[]` | No | Actions executed on state entry. |
 | `exit` | `Action[]` | No | Actions executed on state exit. |
 | `invoke` | `Invoke[]` | No | Actors spawned while the state is active. |
 | `tags` | `string[]` | No | Tags for categorizing this state. Duplicates are well-formed. |
 | `output` | `expression \| JSON value` | No | Output associated with final machine completion. |
+| `input` | `expression \| JSON value` | No | Input supplied when the state is entered. |
+| `context` | `Record<string, expression \| JSON value>` | No | Context initialized when the state is entered. |
 | `history` | `"shallow" \| "deep"` | No | History mode for history states. |
 | `target` | `StateReference` | No | Default target for history states. |
 | `meta` | `Record<string, JSON value>` | No | Semantically opaque metadata. |
@@ -168,6 +179,8 @@ A state represents a distinct mode or situation of the machine.
 **Final state.** A state with `type: "final"`. It represents completion of its parent state, or machine completion when the root itself is final or the final state participates in completing the root. Transition fields on final states MAY be ignored and SHOULD produce warnings if ignored.
 
 **History state.** A state with `type: "history"`. It records and restores the previously active child state of its parent. Recognized fields that are meaningless for a history state MAY be ignored and SHOULD produce warnings if ignored.
+
+**Choice state.** A state with `type: "choice"`. Its required `choice` array is evaluated in document order. Each branch has a required target and may declare a `when` guard, context update, target input, description, reentry flag, and meta. The first matching branch is selected. An unguarded fallback branch MUST be last.
 
 ## Reference Resolution
 
@@ -222,9 +235,11 @@ Transition arrays MAY be empty.
 | Property | Type | Required | Description |
 |---|---|---|---|
 | `target` | `StateReference \| StateReference[]` | No | Target state reference or references. `[]` is equivalent to no target. |
+| `matches` | `Record<string, JSON value>` | No | Shallow event payload pattern tested before the guard. |
 | `guard` | `expression \| NamedGuard` | No | Condition for selecting the transition. |
 | `context` | `Record<string, expression \| JSON value>` | No | Context assignments applied when this transition is selected. |
 | `actions` | `Action[]` | No | Actions executed when this transition is selected. |
+| `input` | `expression \| JSON value` | No | Input supplied to entered target states. |
 | `reenter` | `boolean` | No | Whether selected target states are re-entered. Defaults to `false`. |
 | `description` | `string` | No | Human-readable description. |
 | `meta` | `Record<string, JSON value>` | No | Semantically opaque metadata. |
@@ -248,6 +263,10 @@ For an event:
 
 Eventless `always` transitions and delayed `after` transitions use the same transition object selection rules, but they are triggered by state entry/microsteps or delays rather than event descriptor matching.
 
+When `matches` is present, a transition is eligible only when every declared
+property equals the corresponding event property. Profiles MAY define richer
+payload-pattern matching semantics.
+
 ## Reentry
 
 Selected transitions with `reenter: true` re-enter their target states according to ordinary statechart exit/entry semantics. This includes stopping actors in exited states and starting actors in entered states.
@@ -268,6 +287,19 @@ The `onDone` property defines transitions taken when a state reaches done status
 - The root machine completes when the root itself is final or when its active configuration reaches root completion.
 
 Machine output is the output associated with the final configuration that completes the machine. `schemas.output`, when present, describes the machine output contract. This draft intentionally does not fully specify output-completeness validation for all nested completion structures.
+
+## Error and timeout transitions
+
+`onError` handles execution errors raised by the active state or its descendants.
+`timeout` starts when its state or invocation starts and is cancelled when that
+scope exits or completes. `onTimeout` is required whenever `timeout` is present.
+State timeouts and delayed `after` transitions are independent and may coexist.
+
+## Routes
+
+`route` is a profile-defined routing decision. Its closed object form may contain
+`description`, `reenter`, `meta`, a named `guard`, and an input record. The core
+specification preserves this data but does not define when a route executes.
 
 ## Actions
 
@@ -339,11 +371,13 @@ An invoke configuration is a closed object that describes an actor spawned while
 |---|---|---|---|
 | `src` | `string` | Yes | Actor source name. Semantics are profile-defined. |
 | `id` | `string` | No | Actor instance ID. |
+| `registryKey` | `string` | No | Stable profile-defined runtime registry key. |
 | `input` | `expression \| JSON value` | No | Input passed to the actor. |
 | `onDone` | `Transition` | No | Transition when the actor completes successfully. |
 | `onError` | `Transition` | No | Transition when the actor fails. |
 | `onSnapshot` | `Transition` | No | Transition when the actor emits a snapshot. |
-| `timeout` | `string` | No | ISO 8601 duration for invocation timeout. |
+| `timeout` | `number \| string` | No | Milliseconds, named delay, or ISO 8601 duration for invocation timeout. |
+| `onTimeout` | `Transition` | Cond. | Required when `timeout` is present. |
 | `heartbeat` | `string` | No | ISO 8601 duration for heartbeat interval. |
 | `retry` | `RetryPolicy` | No | Retry policy for failed invocations. |
 | `meta` | `Record<string, JSON value>` | No | Semantically opaque metadata. |
@@ -391,8 +425,12 @@ Expressions MAY appear in:
 
 - guard expressions
 - transition `context` values
+- state and transition `input`
 - invoke `input`
 - state `output`
+- state and invoke `timeout` values where a profile permits expressions
+- choice guards and branch values
+- routes
 - `core.assign` assignment values
 - profile-defined action fields or guard `params`
 
@@ -449,6 +487,8 @@ The following core objects are closed. Unknown properties are errors:
 - `Machine`
 - `State`
 - `TransitionObject`
+- `ChoiceBranch`
+- `Route`
 - core action objects
 - named `Guard`
 - `RetryPolicy`
@@ -472,13 +512,39 @@ Transition = TransitionObject | TransitionObject[]
 
 TransitionObject = {
   target?: StateReference | StateReference[]
+  matches?: Record<string, JSONValue>
   guard?: string | { type: string, params?: JSONValue, [profileField: string]: JSONValue }
   context?: Record<string, string | JSONValue>
   actions?: Action[]
+  input?: string | JSONValue
   reenter?: boolean
   description?: string
   meta?: Record<string, JSONValue>
   order?: number
+}
+
+Guard = string | {
+  type: string
+  params?: JSONValue
+  [profileField: string]: JSONValue
+}
+
+ChoiceBranch = {
+  when?: Guard
+  target: StateReference | StateReference[]
+  context?: Record<string, string | JSONValue>
+  input?: string | JSONValue
+  description?: string
+  reenter?: boolean
+  meta?: Record<string, JSONValue>
+}
+
+Route = {
+  description?: string
+  reenter?: boolean
+  meta?: Record<string, JSONValue>
+  guard?: string
+  input?: Record<string, JSONValue>
 }
 
 CoreAssignAction = {
@@ -498,11 +564,13 @@ Action = CoreAssignAction | ProfileAction
 Invoke = {
   src: string
   id?: string
+  registryKey?: string
   input?: string | JSONValue
   onDone?: Transition
   onError?: Transition
   onSnapshot?: Transition
-  timeout?: string
+  timeout?: number | string
+  onTimeout?: Transition
   heartbeat?: string
   retry?: { maxAttempts: number, interval?: number | string, backoff?: number }
   meta?: Record<string, JSONValue>
@@ -512,18 +580,25 @@ Invoke = {
 State = {
   id?: string
   description?: string
-  type?: "parallel" | "history" | "final"
+  type?: "atomic" | "compound" | "parallel" | "history" | "final" | "choice"
   initial?: string
   states?: Record<string, State>
   on?: Record<EventDescriptor, Transition>
   after?: Record<string, Transition>
   always?: Transition
   onDone?: Transition
+  onError?: Transition
+  timeout?: number | string
+  onTimeout?: Transition
+  choice?: ChoiceBranch[]
+  route?: string | Route
   entry?: Action[]
   exit?: Action[]
   invoke?: Invoke[]
   tags?: string[]
   output?: string | JSONValue
+  input?: string | JSONValue
+  context?: Record<string, string | JSONValue>
   history?: "shallow" | "deep"
   target?: StateReference
   meta?: Record<string, JSONValue>
@@ -547,5 +622,9 @@ Machine = State & {
     events?: Record<string, JSONSchema>
     output?: JSONSchema
   }
+  actions?: Record<string, Action | Action[]>
+  guards?: Record<string, { when: Guard }>
+  actors?: Record<string, JSONValue>
+  delays?: Record<string, number | string | { duration: number | string }>
 }
 ```

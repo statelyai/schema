@@ -197,10 +197,81 @@ export function machineToGraph(machine: StateMachine): Graph {
         }
       }
 
+      // Error and timeout transitions
+      for (const stateTransitionKey of ['onError', 'onTimeout'] as const) {
+        if (state[stateTransitionKey]) {
+          const transitions = normalizeTransitions(state[stateTransitionKey]);
+          for (let i = 0; i < transitions.length; i++) {
+            const t = transitions[i];
+            const targets = normalizeTargets(t.target);
+            for (
+              let targetIndex = 0;
+              targetIndex < targets.length;
+              targetIndex++
+            ) {
+              const targetId = resolveTarget(
+                targets[targetIndex],
+                pathPrefix,
+                nodeId,
+                globalReferenceTargets,
+              );
+              pendingEdges.push({
+                id: `${nodeId}|${stateTransitionKey}|${targetId}|${i}|${targetIndex}`,
+                sourceId: nodeId,
+                targetId,
+                label: stateTransitionKey,
+                data: {
+                  guard: t.guard,
+                  description: t.description,
+                  meta: t.meta,
+                  order: t.order,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      // Choice branches
+      if (state.choice) {
+        for (let i = 0; i < state.choice.length; i++) {
+          const branch = state.choice[i];
+          const targets = normalizeTargets(branch.target);
+          for (
+            let targetIndex = 0;
+            targetIndex < targets.length;
+            targetIndex++
+          ) {
+            const targetId = resolveTarget(
+              targets[targetIndex],
+              pathPrefix,
+              nodeId,
+              globalReferenceTargets,
+            );
+            pendingEdges.push({
+              id: `${nodeId}|choice|${targetId}|${i}|${targetIndex}`,
+              sourceId: nodeId,
+              targetId,
+              label: 'choice',
+              data: {
+                guard: branch.when,
+                description: branch.description,
+                meta: branch.meta,
+              },
+            });
+          }
+        }
+      }
+
       // Invoke onDone/onError/onSnapshot
       if (state.invoke) {
         for (const inv of state.invoke) {
-          for (const invKey of ['onDone', 'onError', 'onSnapshot'] as const) {
+          for (const invKey of [
+            'onDone',
+            'onError',
+            'onSnapshot',
+            'onTimeout',
+          ] as const) {
             if (inv[invKey]) {
               const transitions = normalizeTransitions(inv[invKey]);
               for (let i = 0; i < transitions.length; i++) {

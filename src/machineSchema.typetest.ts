@@ -223,6 +223,7 @@ assert<Invoke>({
   onError: { target: 'failure' },
   onSnapshot: { target: 'updating' },
   timeout: 'PT30S',
+  onTimeout: { target: 'failure' },
   heartbeat: 'PT5S',
   retry: { maxAttempts: 3, interval: 1000, backoff: 2 },
 });
@@ -233,7 +234,7 @@ assert<Invoke>({ id: 'fetcher' });
 // @ts-expect-error — src must be string
 assert<Invoke>({ src: 123 });
 
-// @ts-expect-error — timeout must be string
+// Millisecond timeouts are supported by XState v6 profiles.
 assert<Invoke>({ src: 'foo', timeout: 30 });
 
 // @ts-expect-error — invoke extra fields must be JSON values

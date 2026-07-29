@@ -16,7 +16,7 @@ npm install @statelyai/schema
   "version": "1.0.0",
   "queryLanguage": "jmespath",
   "initial": "pending",
-  "context": { "retries": 0 },
+  "context": { "retries": 0, "items": [] },
   "states": {
     "pending": {
       "on": {
@@ -29,7 +29,8 @@ npm install @statelyai/schema
     "processing": {
       "invoke": [{
         "src": "processOrder",
-        "retry": { "maxAttempts": 3, "interval": "PT2S", "backoff": 2 },
+        "timeout": "PT30S",
+        "onTimeout": { "target": "failed" },
         "onDone": { "target": "complete" },
         "onError": [
           { "target": "pending", "guard": "{{ context.retries < 3 }}" },
@@ -63,11 +64,22 @@ import { createJsonataEvaluator } from '@statelyai/schema/jsonata';
 import { createJsonpathEvaluator } from '@statelyai/schema/jsonpath';
 ```
 
-The built-in `convertSpecToMachine()` and `convertSpecToConfig()` helpers require synchronous evaluation because they target XState's synchronous guards/actions. That means the built-in `jsonata` evaluator is not supported there; use `jmespath`, `jsonpath`, or pass a custom synchronous `evaluate` implementation.
+`convertSpecToConfig()` produces serializable XState v6 `MachineJSON`; expressions
+become `@expr` values and remain unevaluated. `convertSpecToMachine()` requires a
+synchronous evaluator because XState guards and transitions are synchronous. The
+built-in async `jsonata` evaluator is therefore unavailable for machine creation;
+use `jmespath`, `jsonpath`, or provide a synchronous `evaluate` implementation.
 
-Those helpers also do not implement invoke-level `timeout`, `heartbeat`, or declarative `retry`; if those fields are present, conversion fails fast instead of silently dropping them.
+State and invoke `timeout`/`onTimeout` are supported. Workflow-level `heartbeat`
+and declarative `retry` have no XState v6 equivalent and fail explicitly.
 
 ## Converting to XState
+
+<!-- XState v6 conversion exports from src/index.ts and src/toXState.ts -->
+
+The conversion surface targets the pinned XState `6.0.0-alpha.25` MachineJSON
+contract. Alpha upgrades are intentional compatibility changes and must pass the
+cross-runtime round-trip tests in this repository.
 
 The `queryLanguage` in the spec is used to automatically resolve the expression evaluator:
 
@@ -79,6 +91,22 @@ const machine = convertSpecToMachine(spec);
 const [state] = initialTransition(machine);
 const [next] = transition(machine, state, { type: 'SUBMIT' });
 ```
+
+Convert in either direction without executing the machine:
+
+```ts
+import {
+  convertSpecToConfig,
+  fromXStateConfig,
+} from '@statelyai/schema';
+
+const machineJson = convertSpecToConfig(spec);
+const restoredSpec = fromXStateConfig(machineJson, { key: 'order' });
+```
+
+The reverse adapter accepts the serializable MachineJSON subset. It rejects
+`@code` values because executable JavaScript is outside the runtime-neutral
+specification.
 
 These XState conversion helpers support machines with no declared profile or with
 the `xstate` profile identifier, using either the registered short name or the
@@ -114,6 +142,11 @@ const machine = convertSpecToMachine(spec, { queryLanguage: 'jsonpath' });
 // Bring your own evaluator:
 const evaluate: ExpressionEvaluator = (expression, data) => { /* ... */ };
 const machine = convertSpecToMachine(spec, { evaluate });
+
+// Resolve named XState sources:
+const sourcedMachine = convertSpecToMachine(spec, {
+  sources: { actions, guards, actors, delays },
+});
 ```
 
 ## Schema validation
@@ -201,18 +234,25 @@ directly instead of lowering them into the core machine schema.
 | Property | Type | Description |
 |---|---|---|
 | `id` | `string` | Optional explicit global alias |
-| `type` | `"parallel" \| "history" \| "final"` | State type (omit for normal states) |
+| `type` | `"atomic" \| "compound" \| "parallel" \| "history" \| "final" \| "choice"` | State type |
 | `initial` | `string` | Immediate child key to enter first |
 | `states` | `Record<string, State>` | Child states |
 | `on` | `Record<EventDescriptor, Transition>` | Event-driven transitions |
 | `after` | `Record<string, Transition>` | Delayed transitions (ms or ISO 8601 duration) |
 | `always` | `Transition` | Eventless transitions |
 | `onDone` | `Transition` | Transitions taken when the state reaches done status |
+| `onError` | `Transition` | Transition on descendant execution errors |
+| `timeout` | `number \| string` | State timeout |
+| `onTimeout` | `Transition` | Required transition when `timeout` is set |
+| `choice` | `ChoiceBranch[]` | Ordered branches for choice states |
+| `route` | `expression \| Route` | Profile-defined state routing |
 | `entry` | `Action[]` | Actions run on state entry |
 | `exit` | `Action[]` | Actions run on state exit |
 | `invoke` | `Invoke[]` | Actors spawned on entry |
 | `tags` | `string[]` | State tags |
 | `output` | `expression \| JSON value` | Output for final states |
+| `input` | `expression \| JSON value` | Input supplied when entering the state |
+| `context` | `Record<string, expression \| JSON value>` | State context initialization |
 | `history` | `"shallow" \| "deep"` | History type (when `type: "history"`) |
 | `target` | `string` | Default target for history states |
 | `description` | `string` | Human-readable description |
@@ -233,6 +273,10 @@ Extends State with:
 | `context` | `Record<string, JSON value>` | Initial context values |
 | `triggers` | `Trigger[]` | Optional machine-level trigger metadata |
 | `schemas` | `{ input?, context?, events?, output? }` | JSON Schema definitions for input, context, event payloads, and output |
+| `actions` | `Record<string, Action \| Action[]>` | Declarative named action definitions |
+| `guards` | `Record<string, { when: Guard }>` | Declarative named guard definitions |
+| `actors` | `Record<string, JSON value>` | Serializable actor definitions |
+| `delays` | `Record<string, Delay>` | Named delay definitions |
 
 ### Triggers
 
@@ -264,7 +308,7 @@ A transition is an object or an array of objects (for branching):
       "target": "processing",
       "guard": "{{ context.isValid }}",
       "context": { "submitted": true },
-      "actions": [{ "type": "xstate.log" }]
+      "actions": [{ "type": "@xstate.log", "args": ["submitted"] }]
     },
 
     "CHECK": [
@@ -279,8 +323,10 @@ A transition is an object or an array of objects (for branching):
 |---|---|---|
 | `target` | `string \| string[]` | Target state reference(s) |
 | `guard` | `expression \| NamedGuard` | Condition for taking transition |
+| `matches` | `Record<string, JSON value>` | Shallow event payload pattern |
 | `context` | `Record<string, expression \| JSON value>` | Context assignments (equivalent to `core.assign`) |
 | `actions` | `Action[]` | Actions to execute |
+| `input` | `expression \| JSON value` | Input supplied to target states |
 | `description` | `string` | Human-readable description |
 | `meta` | `Record<string, JSON value>` | Arbitrary metadata |
 | `order` | `number` | Explicit transition priority |
@@ -296,16 +342,22 @@ The core specification defines `core.assign` for keyed context assignment:
 
 Other actions use `{ "type": string, "params"?: JSON value, ...profileFields }`; profiles or converters define their semantics and any additional JSON-valued fields.
 
-The XState converter also recognizes `xstate.*` action types:
+The XState profile uses the canonical v6 MachineJSON built-ins:
 
 ```json
-{ "type": "xstate.raise", "params": { "event": { "type": "DONE" } } }
-{ "type": "xstate.sendTo", "params": { "actorRef": "worker", "event": { "type": "PING" } } }
-{ "type": "xstate.log", "params": { "message": "{{ context.status }}" } }
-{ "type": "xstate.emit", "params": { "event": { "type": "NOTIFY" } } }
+{ "type": "@xstate.assign", "context": { "count": "{{ context.count + 1 }}" } }
+{ "type": "@xstate.raise", "event": { "type": "DONE" } }
+{ "type": "@xstate.cancel", "id": "pending" }
+{ "type": "@xstate.log", "args": ["{{ context.status }}"] }
+{ "type": "@xstate.emit", "event": { "type": "NOTIFY" } }
 ```
 
-Other actions pass through to XState (resolved via `setup()`):
+Legacy `xstate.assign`, `xstate.raise`, `xstate.log`, and `xstate.emit` forms are
+translated. Legacy `xstate.sendTo` is rejected because v6 MachineJSON has no
+declarative equivalent; use a named custom action source.
+
+Other actions pass through to XState and must be supplied through conversion
+`sources`:
 
 ```json
 { "type": "trackAnalytics", "params": { "event": "checkout" } }
@@ -318,7 +370,7 @@ Expression guard:
 { "guard": "{{ context.count > 0 }}" }
 ```
 
-Named guard (resolved via `setup()`):
+Named guard (resolved through conversion `sources.guards`):
 ```json
 { "guard": { "type": "isValid", "params": { "min": 5 }, "config": { "strict": true } } }
 ```
@@ -329,13 +381,15 @@ Profile-defined named guards may also include additional JSON-valued fields.
 
 | Property | Type | Description |
 |---|---|---|
-| `src` | `string` | Actor source (resolved via `setup()`) |
+| `src` | `string` | Actor source (resolved through conversion `sources.actors`) |
 | `id` | `string` | Actor ID |
+| `registryKey` | `string` | Stable runtime registry key |
 | `input` | `expression \| JSON value` | Input passed to actor |
 | `onDone` | `Transition` | Transition when actor completes |
 | `onError` | `Transition` | Transition when actor fails |
 | `onSnapshot` | `Transition` | Transition on actor snapshot |
-| `timeout` | `string` | ISO 8601 duration |
+| `timeout` | `number \| string` | Milliseconds, delay reference, or ISO 8601 duration |
+| `onTimeout` | `Transition` | Required transition when `timeout` is set |
 | `heartbeat` | `string` | ISO 8601 duration |
 | `retry` | `{ maxAttempts, interval?, backoff? }` | Retry policy on error |
 
